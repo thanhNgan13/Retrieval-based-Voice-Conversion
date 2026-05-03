@@ -26,3 +26,13 @@ rmvpe.pt
 /assets/weights/*
 ffmpeg.*
 ffprobe.*
+/rvc_standalone/assets/pretrained
+/rvc_standalone/assets/pretrained_v2
+/rvc_standalone/assets/uvr5_weights
+
+
+# 1. Bỏ qua tất cả các file và thư mục con bên trong thư mục logs
+/rvc_standalone/logs/*
+
+# 2. Nhưng không bỏ qua thư mục mute
+!/rvc_standalone/logs/mute/

@@ -1,0 +1,5 @@
+# Optional overlay: pass the host NVIDIA GPU into the container (requires
+# NVIDIA driver + Docker GPU support, e.g. nvidia-container-toolkit on Linux / WSL2 + Docker).
+services:
+  rvc:
+    gpus: all

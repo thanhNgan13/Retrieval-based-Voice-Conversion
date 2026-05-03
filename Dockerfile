@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-
-FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04
+# Ubuntu 22.04 + Python 3.10 from official repos (no deadsnakes PPA — avoids GPG/launchpad timeouts during build)
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 EXPOSE 7865
 
@@ -8,27 +8,27 @@ WORKDIR /app
 
 COPY . .
 
-# Install dependenceis to add PPAs
 RUN apt-get update && \
-    apt-get install -y -qq ffmpeg aria2 && apt clean && \
-    apt-get install -y software-properties-common && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Add the deadsnakes PPA to get Python 3.9
-RUN add-apt-repository ppa:deadsnakes/ppa
-
-# Install Python 3.9 and pip
-RUN apt-get update && \
-    apt-get install -y build-essential python-dev python3-dev python3.9-distutils python3.9-dev python3.9 curl && \
-    apt-get clean && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3.9
-
-# Set Python 3.9 as the default
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1
+    apt-get install -y -qq --no-install-recommends \
+      ffmpeg \
+      aria2 \
+      build-essential \
+      curl \
+      python3 \
+      python3-pip \
+      python3-venv \
+      python3-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/bin/python
 
 RUN python3 -m pip install --upgrade pip==24.0
+
+# Install CUDA PyTorch first so fairseq does not pull a CPU-only build from PyPI.
+# If no GPU is passed through, PyTorch still runs on CPU.
+RUN python3 -m pip install --no-cache-dir \
+      torch torchvision torchaudio \
+      --index-url https://download.pytorch.org/whl/cu118
+
 RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
 RUN aria2c --console-log-level=error -c -x 16 -s 16 -k 1M https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/D40k.pth -d assets/pretrained_v2/ -o D40k.pth
@@ -45,4 +45,6 @@ RUN aria2c --console-log-level=error -c -x 16 -s 16 -k 1M https://huggingface.co
 
 VOLUME [ "/app/weights", "/app/opt" ]
 
-CMD ["python3", "infer-web.py"]
+# Strip Windows CRLF so the shebang works in Linux
+RUN sed -i 's/\r$//' /app/docker/entrypoint.sh && chmod +x /app/docker/entrypoint.sh
+ENTRYPOINT ["/app/docker/entrypoint.sh"]

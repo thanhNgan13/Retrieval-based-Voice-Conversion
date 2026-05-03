@@ -1,4 +1,7 @@
-version: "3.8"
+# Default: runs everywhere (including machines without an NVIDIA driver).
+# RVC will use the CPU when no CUDA device is visible inside the container.
+# For host NVIDIA GPU, use: ./scripts/docker-up.ps1 (Windows) or ./scripts/docker-up.sh (Linux/WSL),
+# or: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 services:
   rvc:
     build:
@@ -11,10 +14,3 @@ services:
       # - ./dataset:/app/dataset # you can use this folder in order to provide your dataset for model training
     ports:
       - 7865:7865
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
