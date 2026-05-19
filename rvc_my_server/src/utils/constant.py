@@ -5,6 +5,9 @@ API_VERSION = settings.API_VERSION
 API_BASE_PATH = f"/{ENV_PREFIX}/{API_VERSION}"
 
 USERS_COLLECTION = "users"
+RVC_MODELS_COLLECTION = "rvc_models"
+
+PUBLIC_RVC_MODEL_FOLDER = "public_rvc_model"
 
 DEFAULT_ROLE = "user"
 ADMIN_ROLE = "admin"

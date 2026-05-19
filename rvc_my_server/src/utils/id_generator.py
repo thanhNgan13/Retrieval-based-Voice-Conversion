@@ -10,9 +10,5 @@ def generate_user_id() -> str:
     return _generate_id("user")
 
 
-def generate_voice_id() -> str:
-    return _generate_id("voice")
-
-
-def generate_conversion_id() -> str:
-    return _generate_id("conv")
+def generate_rvc_model_id() -> str:
+    return _generate_id("rvc")
