@@ -11,6 +11,7 @@ PUBLIC_RVC_MODEL_FOLDER = "public_rvc_model"
 
 DEFAULT_ROLE = "user"
 ADMIN_ROLE = "admin"
+ADMIN_USER_ID = "admin"
 
 
 def _parse_expiry_to_seconds(expiry: str) -> int:

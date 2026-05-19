@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRES_IN: str = "1d"
     REFRESH_TOKEN_EXPIRES_IN: str = "30d"
 
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin"
+
     GOOGLE_APPLICATION_CREDENTIALS: str = ""
     FIREBASE_PROJECT_ID: str = ""
     FIREBASE_STORAGE_BUCKET: str = ""

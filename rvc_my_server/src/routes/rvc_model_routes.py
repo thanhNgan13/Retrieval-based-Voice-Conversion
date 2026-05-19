@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
 from src.controllers.rvc_model_controller import rvc_model_controller
-from src.middlewares.auth_middleware import AuthContext, authenticate_token
+from src.middlewares.auth_middleware import AuthContext, authenticate_token_admin
 from src.schemas.rvc_model_schema import UpdateRvcModelRequest
 
 router = APIRouter()
@@ -24,7 +24,7 @@ async def upload(
     modelFile: UploadFile = File(..., description="File trọng số .pth của RVC model"),
     indexFile: UploadFile = File(..., description="File .index FAISS của RVC model"),
     thumbnail: Optional[UploadFile] = File(default=None, description="Ảnh thumbnail (jpg/jpeg/png/webp). Tuỳ chọn."),
-    auth: AuthContext = Depends(authenticate_token),
+    auth: AuthContext = Depends(authenticate_token_admin),
 ):
     return await rvc_model_controller.upload(
         title=title,
@@ -52,7 +52,7 @@ async def list_models(
     summary="Delete ALL RVC models — DANGEROUS",
     description="Xoá toàn bộ document trong `rvc_models` và toàn bộ blob dưới `public_rvc_model/`.",
 )
-async def delete_all(auth: AuthContext = Depends(authenticate_token)):
+async def delete_all(auth: AuthContext = Depends(authenticate_token_admin)):
     return await rvc_model_controller.delete_all(auth)
 
 
@@ -71,7 +71,7 @@ async def get_detail(rvc_model_id: str):
 async def update_one(
     rvc_model_id: str,
     body: UpdateRvcModelRequest,
-    auth: AuthContext = Depends(authenticate_token),
+    auth: AuthContext = Depends(authenticate_token_admin),
 ):
     return await rvc_model_controller.update(rvc_model_id, body, auth)
 
@@ -82,6 +82,6 @@ async def update_one(
 )
 async def delete_one(
     rvc_model_id: str,
-    auth: AuthContext = Depends(authenticate_token),
+    auth: AuthContext = Depends(authenticate_token_admin),
 ):
     return await rvc_model_controller.delete_one(rvc_model_id, auth)

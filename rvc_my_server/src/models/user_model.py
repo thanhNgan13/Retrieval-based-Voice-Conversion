@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Tuple
 
+from google.cloud.firestore_v1 import Query
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from src.config.firebase import get_db
@@ -53,3 +54,23 @@ def get_user_by_email(email: str) -> Optional[dict]:
     if not docs:
         return None
     return docs[0].to_dict()
+
+
+def list_users_paginated(
+    limit: int,
+    start_after: Optional[str],
+) -> Tuple[list, bool]:
+    """Sorted by created_at DESC. Returns (items_up_to_limit, has_next)."""
+    db = get_db()
+    query = (
+        db.collection(USERS_COLLECTION)
+        .order_by("created_at", direction=Query.DESCENDING)
+    )
+    if start_after:
+        cursor_snap = db.collection(USERS_COLLECTION).document(start_after).get()
+        if cursor_snap.exists:
+            query = query.start_after(cursor_snap)
+    query = query.limit(limit + 1)
+    docs = [d.to_dict() for d in query.stream()]
+    has_next = len(docs) > limit
+    return docs[:limit], has_next

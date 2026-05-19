@@ -61,6 +61,15 @@ def generate_refresh_token(user_id: str, role: str = "user") -> str:
     return jwt.encode(payload, secret, algorithm=JWT_ALGORITHM)
 
 
+def build_token_bundle(user_id: str, role: str = "user") -> dict:
+    return {
+        "accessToken": generate_access_token(user_id, role),
+        "refreshToken": generate_refresh_token(user_id, role),
+        "accessTokenExpiresIn": ACCESS_TOKEN_TTL_SECONDS,
+        "refreshTokenExpiresIn": REFRESH_TOKEN_TTL_SECONDS,
+    }
+
+
 def _decode(token: str, secret: str) -> dict:
     return jwt.decode(token, secret, algorithms=[JWT_ALGORITHM])
 

@@ -1,21 +1,13 @@
 import bcrypt
 
-from src.middlewares.auth_middleware import (
-    generate_access_token,
-    generate_refresh_token,
-    verify_refresh_token,
-)
+from src.middlewares.auth_middleware import build_token_bundle, verify_refresh_token
 from src.models.user_model import (
     add_user_to_firestore,
     get_user_by_email,
     get_user_by_id,
     prepare_user_data,
 )
-from src.utils.constant import (
-    ACCESS_TOKEN_TTL_SECONDS,
-    DEFAULT_ROLE,
-    REFRESH_TOKEN_TTL_SECONDS,
-)
+from src.utils.constant import DEFAULT_ROLE
 from src.utils.data_transform import convert_firestore_doc
 from src.utils.id_generator import generate_user_id
 
@@ -54,15 +46,6 @@ def _public_user(doc: dict) -> dict:
     return convert_firestore_doc(doc, drop_keys=_PUBLIC_DROP_KEYS)
 
 
-def _build_token_bundle(user_id: str, role: str) -> dict:
-    return {
-        "accessToken": generate_access_token(user_id, role),
-        "refreshToken": generate_refresh_token(user_id, role),
-        "accessTokenExpiresIn": ACCESS_TOKEN_TTL_SECONDS,
-        "refreshTokenExpiresIn": REFRESH_TOKEN_TTL_SECONDS,
-    }
-
-
 def register_user(email: str, password: str, name: str) -> dict:
     existing = get_user_by_email(email)
     if existing is not None:
@@ -80,7 +63,7 @@ def register_user(email: str, password: str, name: str) -> dict:
 
     return {
         "user": _public_user(user_data),
-        **_build_token_bundle(user_id, DEFAULT_ROLE),
+        "tokens": build_token_bundle(user_id, DEFAULT_ROLE),
     }
 
 
@@ -93,7 +76,7 @@ def login_user(email: str, password: str) -> dict:
 
     return {
         "user": _public_user(doc),
-        **_build_token_bundle(doc["user_id"], doc.get("role", DEFAULT_ROLE)),
+        "tokens": build_token_bundle(doc["user_id"], doc.get("role", DEFAULT_ROLE)),
     }
 
 
@@ -111,4 +94,4 @@ def refresh_access_token(refresh_token: str) -> dict:
     if not doc:
         raise UserNotFoundError("User not found")
 
-    return _build_token_bundle(user_id, doc.get("role", DEFAULT_ROLE))
+    return {"tokens": build_token_bundle(user_id, doc.get("role", DEFAULT_ROLE))}
