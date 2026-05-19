@@ -24,6 +24,14 @@ app = FastAPI(
     docs_url="/api-docs",
     openapi_url="/api-docs.json",
     redoc_url=None,
+    swagger_ui_parameters={
+        # Persist Authorize tokens in browser localStorage across page refresh.
+        "persistAuthorization": True,
+        # Keep request/response bodies expanded by default for easier debugging.
+        "tryItOutEnabled": True,
+        # Show operation tags collapsed for cleaner overview.
+        "docExpansion": "none",
+    },
 )
 
 app.add_middleware(

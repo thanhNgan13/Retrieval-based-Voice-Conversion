@@ -22,8 +22,21 @@ PowerShell (Windows):
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+
+# fairseq 0.12.2 cần pip < 24.1 (vì omegaconf metadata cũ).
+python -m pip install -U "pip>=23.2,<24.1"
+
+# Auto-detect NVIDIA GPU và cài torch + toàn bộ requirements.
+# Nếu máy có CUDA driver → tự chọn wheel cu118/cu121/cu124 phù hợp.
+# Nếu không có GPU → fallback CPU.
+python install_deps.py
+
+# (Tùy chọn) ép GPU/CPU rõ ràng:
+# python install_deps.py --cuda 12.4
+# python install_deps.py --cpu
 ```
+
+Sau khi cài xong, có thể verify GPU bằng API `GET /admin-services/torch-status` (xem mục Endpoint).
 
 ### 3. Cấu hình Firebase
 

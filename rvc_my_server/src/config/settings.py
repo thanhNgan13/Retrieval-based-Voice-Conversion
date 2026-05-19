@@ -22,5 +22,10 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str = ""
     FIREBASE_STORAGE_BUCKET: str = ""
 
+    # Folder holding hubert_base.pt, rmvpe.pt, ... (downloaded via admin setup-assets).
+    ASSETS_DIR: str = "./assets"
+    # Local cache for downloaded model/.index files (per rvcModelId) and infer outputs.
+    INFER_CACHE_DIR: str = "./cache"
+
 
 settings = Settings()

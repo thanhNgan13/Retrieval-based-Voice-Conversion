@@ -15,10 +15,23 @@ from src.utils.constant import (
 
 JWT_ALGORITHM = "HS256"
 
+# Two distinct schemes so Swagger's Authorize popup shows separate input boxes:
+#   - bearerAuth      → user token  (POST /auth-services/login)
+#   - bearerAdminAuth → admin token (POST /admin-services/login)
+# Each token is signed with a DIFFERENT secret (JWT_SECRET vs ADMIN_JWT_SECRET),
+# so pasting one into the other's box will return 403 from the matching middleware.
 # auto_error=False: tự xử lý "thiếu token" để trả đúng response envelope của dự án.
-bearer_scheme = HTTPBearer(
+bearer_user_scheme = HTTPBearer(
     scheme_name="bearerAuth",
-    description="Dán JWT access token (không cần tự thêm 'Bearer ').",
+    description="JWT access token của USER (lấy từ POST /auth-services/login).",
+    auto_error=False,
+)
+bearer_admin_scheme = HTTPBearer(
+    scheme_name="bearerAdminAuth",
+    description=(
+        "JWT access token của ADMIN (lấy từ POST /admin-services/login). "
+        "Ký bằng ADMIN_JWT_SECRET, khác với token user."
+    ),
     auto_error=False,
 )
 
@@ -109,7 +122,7 @@ def _verify(token: str, secret: str) -> dict:
 
 
 def authenticate_token(
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_user_scheme),
 ) -> AuthContext:
     token = _require_credentials(creds)
     payload = _verify(token, settings.JWT_SECRET)
@@ -123,7 +136,7 @@ def authenticate_token(
 
 
 def authenticate_token_admin(
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_admin_scheme),
 ) -> AuthContext:
     token = _require_credentials(creds)
     payload = _verify(token, settings.ADMIN_JWT_SECRET)
@@ -137,7 +150,7 @@ def authenticate_token_admin(
 
 
 def authenticate_user_or_admin(
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_user_scheme),
 ) -> AuthContext:
     token = _require_credentials(creds)
     try:
