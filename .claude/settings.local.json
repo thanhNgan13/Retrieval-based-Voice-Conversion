@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m compileall -q .)",
+      "Bash(python -m compileall -q src/middlewares/auth_middleware.py)"
+    ]
+  }
+}
