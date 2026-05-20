@@ -18,6 +18,8 @@ google-cloud-storage==2.18.2
 # ---- Utilities ----
 python-dotenv==1.0.1
 requests>=2.32.0
+celery[redis]==5.4.0
+redis==5.2.0
 # setuptools provides pkg_resources, which fairseq 0.12.2 still imports.
 # Pin <81 because pkg_resources is deprecated in newer setuptools and may be removed.
 setuptools<81

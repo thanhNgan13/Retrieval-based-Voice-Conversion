@@ -6,8 +6,13 @@ API_BASE_PATH = f"/{ENV_PREFIX}/{API_VERSION}"
 
 USERS_COLLECTION = "users"
 RVC_MODELS_COLLECTION = "rvc_models"
+RVC_TRAIN_JOBS_COLLECTION = "rvc_train_jobs"
+RVC_AUDIO_UPLOADS_COLLECTION = "rvc_audio_uploads"
+USER_RVC_MODELS_SUBCOLLECTION = "rvc_models"
 
 PUBLIC_RVC_MODEL_FOLDER = "public_rvc_model"
+PRIVATE_RVC_MODEL_FOLDER = "user_rvc_model"
+TRAIN_UPLOAD_FOLDER = "train_uploads"
 
 DEFAULT_ROLE = "user"
 ADMIN_ROLE = "admin"

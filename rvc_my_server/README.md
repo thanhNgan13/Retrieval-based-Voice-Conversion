@@ -55,6 +55,41 @@ uvicorn main:app --reload --port 8000
 - Swagger: `http://127.0.0.1:8000/api-docs`
 - Health: `http://127.0.0.1:8000/dev/health-check`
 
+### 5. Chạy Redis + Celery worker cho training
+
+Training RVC chạy qua Celery, progress realtime publish qua Redis và WebSocket.
+Trên Windows nên dùng `--pool=solo` để tránh lỗi multiprocessing/fork.
+
+```powershell
+# Terminal 1: Redis server
+redis-server
+
+# Terminal 2: Celery worker, chạy trong thư mục rvc_my_server
+celery -A src.config.celery_app.celery_app worker --loglevel=info --pool=solo --concurrency=1
+
+# Terminal 3: FastAPI
+uvicorn main:app --reload --port 8000
+```
+
+Luồng train private model:
+
+1. `POST /dev/v1/train-services/upload-urls` để lấy signed PUT URL.
+2. Client PUT audio lên Storage bằng URL đó.
+3. `POST /dev/v1/train-services/jobs` với `audioObjectPaths`.
+4. Subscribe WebSocket: `/dev/v1/train-services/jobs/{trainJobId}/ws?token=<accessToken>`.
+5. Khi job `succeeded`, model nằm trong `users/{userId}/rvc_models/{rvcModelId}` và có thể dùng ngay với `/infer-services/convert`.
+
+Server train cần đủ asset RVC:
+
+```text
+assets/hubert/hubert_base.pt
+assets/rmvpe/rmvpe.pt
+assets/pretrained/
+assets/pretrained_v2/
+assets/weights/
+logs/mute/
+```
+
 ## Cấu trúc thư mục
 
 ```

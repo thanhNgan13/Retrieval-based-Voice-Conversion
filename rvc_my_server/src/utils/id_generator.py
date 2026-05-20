@@ -12,3 +12,15 @@ def generate_user_id() -> str:
 
 def generate_rvc_model_id() -> str:
     return _generate_id("rvc")
+
+
+def generate_train_job_id() -> str:
+    return _generate_id("train")
+
+
+def generate_upload_session_id() -> str:
+    return _generate_id("upload")
+
+
+def generate_audio_upload_id() -> str:
+    return _generate_id("audio_upload")

@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RVC Training Test UI</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --line: #d8dee9;
+      --text: #172033;
+      --muted: #647083;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --danger: #b91c1c;
+      --ok: #15803d;
+      --warn: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 24px auto 48px;
+    }
+    h1 {
+      margin: 0 0 18px;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+    h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .full { grid-column: 1 / -1; }
+    label {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    input, select, textarea {
+      width: 100%;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+    textarea {
+      min-height: 78px;
+      resize: vertical;
+    }
+    input[type="checkbox"] {
+      width: 16px;
+      min-height: 16px;
+      margin: 0 8px 0 0;
+      vertical-align: middle;
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    .inline {
+      display: flex;
+      align-items: center;
+      min-height: 38px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    button {
+      min-height: 40px;
+      padding: 9px 14px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: var(--primary-dark); }
+    button.secondary {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--line);
+    }
+    button.secondary:hover { background: #f8fafc; }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .status.ok { background: #dcfce7; color: var(--ok); }
+    .status.fail { background: #fee2e2; color: var(--danger); }
+    .status.warn { background: #fef3c7; color: var(--warn); }
+    progress {
+      width: 100%;
+      height: 18px;
+    }
+    pre {
+      margin: 0;
+      min-height: 260px;
+      max-height: 520px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .uploads {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .upload-item {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      background: #fafafa;
+      font-size: 13px;
+    }
+    @media (max-width: 780px) {
+      .grid { grid-template-columns: 1fr; }
+      main { width: min(100vw - 20px, 1180px); margin-top: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>RVC Training Test UI</h1>
+
+    <section class="panel">
+      <h2>Kết nối API</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="apiBase">API base URL</label>
+          <input id="apiBase" value="http://127.0.0.1:8000/dev/v1">
+        </div>
+        <div class="field">
+          <label for="accessToken">Access token</label>
+          <input id="accessToken" type="password" placeholder="Dán accessToken user vào đây">
+        </div>
+      </div>
+      <div class="hint">
+        Cần chạy Redis, Celery worker và FastAPI trước. Nếu browser báo CORS khi PUT signed URL,
+        hãy cấu hình CORS cho Firebase Storage bucket hoặc test upload bằng PowerShell.
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Audio dataset</h2>
+      <div class="field">
+        <label for="audioUploadIds">audioUploadIds</label>
+        <textarea id="audioUploadIds" placeholder="Mỗi dòng một audioUploadId, ví dụ:
+audio_upload_1779267563260_ac4083e7-cc7b-4c0e-9b56-e284dfc751f1"></textarea>
+      </div>
+      <div class="hint">
+        Dán các audioUploadId đã tạo từ API upload-urls. Mỗi dòng là một file audio.
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Thông tin model</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="title">title</label>
+          <input id="title" value="Giọng nữ đọc truyện">
+        </div>
+        <div class="field">
+          <label for="description">description</label>
+          <input id="description" value="Dataset thu trong phòng yên tĩnh.">
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Tham số training</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="sampleRate">sampleRate</label>
+          <select id="sampleRate">
+            <option>32k</option>
+            <option selected>40k</option>
+            <option>48k</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="version">version</label>
+          <select id="version">
+            <option>v1</option>
+            <option selected>v2</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f0Method">f0Method</label>
+          <select id="f0Method">
+            <option>pm</option>
+            <option>harvest</option>
+            <option>dio</option>
+            <option selected>rmvpe</option>
+            <option>rmvpe_gpu</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="speakerId">speakerId</label>
+          <input id="speakerId" type="number" min="0" value="0">
+        </div>
+        <div class="field">
+          <label for="totalEpochs">totalEpochs</label>
+          <input id="totalEpochs" type="number" min="1" max="1000" value="5">
+        </div>
+        <div class="field">
+          <label for="saveEveryEpoch">saveEveryEpoch</label>
+          <input id="saveEveryEpoch" type="number" min="1" max="1000" value="1">
+        </div>
+        <div class="field">
+          <label for="batchSize">batchSize</label>
+          <input id="batchSize" type="number" min="1" max="64" value="2">
+        </div>
+        <div class="field">
+          <label for="numProcesses">numProcesses</label>
+          <input id="numProcesses" type="number" min="1" max="32" value="2">
+        </div>
+        <div class="field">
+          <label for="gpuDevicesTrain">gpuDevicesTrain</label>
+          <input id="gpuDevicesTrain" value="0">
+        </div>
+        <div class="field">
+          <label for="gpusForRmvpe">gpusForRmvpe</label>
+          <input id="gpusForRmvpe" value="0">
+        </div>
+        <div class="field">
+          <label for="pretrainedG">pretrainedG</label>
+          <input id="pretrainedG" value="" placeholder="Để trống để auto resolve">
+        </div>
+        <div class="field">
+          <label for="pretrainedD">pretrainedD</label>
+          <input id="pretrainedD" value="" placeholder="Để trống để auto resolve">
+        </div>
+        <div class="field">
+          <label for="preprocessPer">preprocessPer</label>
+          <input id="preprocessPer" type="number" min="1" max="10" step="0.1" value="3.7">
+        </div>
+        <div class="field">
+          <label for="extractInfo">extractInfo</label>
+          <input id="extractInfo" value="Trained from test UI.">
+        </div>
+        <div class="field">
+          <label for="indexKmeansThreshold">indexKmeansThreshold</label>
+          <input id="indexKmeansThreshold" type="number" min="10000" max="2000000" value="200000">
+        </div>
+        <div class="field">
+          <label for="indexKmeansCenters">indexKmeansCenters</label>
+          <input id="indexKmeansCenters" type="number" min="100" max="100000" value="10000">
+        </div>
+        <div class="field">
+          <label for="indexBatchSize">indexBatchSize</label>
+          <input id="indexBatchSize" type="number" min="1024" max="65536" value="8192">
+        </div>
+        <div class="field">
+          <label for="indexNprobe">indexNprobe</label>
+          <input id="indexNprobe" type="number" min="1" max="64" value="1">
+        </div>
+        <div class="field inline">
+          <label><input id="ifF0" type="checkbox" checked> ifF0</label>
+        </div>
+        <div class="field inline">
+          <label><input id="saveOnlyLatest" type="checkbox" checked> saveOnlyLatest</label>
+        </div>
+        <div class="field inline">
+          <label><input id="cacheDatasetInGpu" type="checkbox"> cacheDatasetInGpu</label>
+        </div>
+        <div class="field inline">
+          <label><input id="saveWeightsEveryEpoch" type="checkbox"> saveWeightsEveryEpoch</label>
+        </div>
+        <div class="field inline">
+          <label><input id="disablePreprocessParallel" type="checkbox"> disablePreprocessParallel</label>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Chạy train</h2>
+      <progress id="progressBar" value="0" max="100"></progress>
+      <div class="actions">
+        <button id="startBtn">Tạo training job</button>
+        <button id="reconnectBtn" class="secondary">Reconnect WebSocket</button>
+        <button id="pollBtn" class="secondary">Poll status</button>
+        <button id="clearBtn" class="secondary">Clear log</button>
+        <span id="statusBadge" class="status warn">idle</span>
+      </div>
+      <div class="hint">
+        UI sẽ gọi API tạo job từ audioUploadIds đã nhập, rồi tự mở WebSocket để nhận progress.
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Realtime progress</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const statusBadge = $("statusBadge");
+    const progressBar = $("progressBar");
+    const startBtn = $("startBtn");
+    const STORAGE_KEY = "rvc_train_test_ui_state";
+    let ws = null;
+    let currentTrainJobId = "";
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        log: logEl.textContent,
+        statusText: statusBadge.textContent,
+        statusClass: statusBadge.className,
+        progress: progressBar.value,
+        apiBase: $("apiBase").value,
+        accessToken: $("accessToken").value,
+        audioUploadIds: $("audioUploadIds").value,
+        currentTrainJobId
+      }));
+    }
+
+    function restoreState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const state = JSON.parse(raw);
+        logEl.textContent = state.log || "";
+        statusBadge.textContent = state.statusText || "idle";
+        statusBadge.className = state.statusClass || "status warn";
+        progressBar.value = Number(state.progress || 0);
+        if (state.apiBase) $("apiBase").value = state.apiBase;
+        if (state.accessToken) $("accessToken").value = state.accessToken;
+        if (state.audioUploadIds) $("audioUploadIds").value = state.audioUploadIds;
+        currentTrainJobId = state.currentTrainJobId || "";
+        logEl.scrollTop = logEl.scrollHeight;
+      } catch (_) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function log(message, data) {
+      const time = new Date().toLocaleTimeString();
+      const line = data === undefined
+        ? `[${time}] ${message}`
+        : `[${time}] ${message}\n${JSON.stringify(data, null, 2)}`;
+      logEl.textContent += `${line}\n\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+      saveState();
+    }
+
+    function setStatus(text, kind) {
+      statusBadge.textContent = text;
+      statusBadge.className = `status ${kind || ""}`.trim();
+      saveState();
+    }
+
+    function apiBase() {
+      return $("apiBase").value.replace(/\/+$/, "");
+    }
+
+    function wsBase() {
+      const base = apiBase();
+      if (base.startsWith("https://")) return `wss://${base.slice(8)}`;
+      if (base.startsWith("http://")) return `ws://${base.slice(7)}`;
+      return base;
+    }
+
+    function token() {
+      return $("accessToken").value.trim();
+    }
+
+    async function pollCurrentJob() {
+      if (!currentTrainJobId) {
+        alert("Chưa có trainJobId để poll.");
+        return;
+      }
+      if (!token()) {
+        alert("Bạn cần nhập accessToken.");
+        return;
+      }
+      const result = await apiFetch(`/train-services/jobs/${encodeURIComponent(currentTrainJobId)}`);
+      log("Poll job status", result.data);
+      const data = result.data || {};
+      if (typeof data.progress === "number") {
+        progressBar.value = data.progress;
+      }
+      if (data.status) {
+        const kind = data.status === "succeeded" ? "ok"
+          : data.status === "failed" ? "fail"
+          : data.status === "running" ? ""
+          : "warn";
+        setStatus(`${data.status} | ${data.stage || ""} | ${data.progress || 0}%`, kind);
+      }
+      saveState();
+      return data;
+    }
+
+    async function apiFetch(path, options = {}) {
+      const headers = {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token()}`
+      };
+      if (options.body && !(options.body instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+      }
+      const response = await fetch(`${apiBase()}${path}`, { ...options, headers });
+      const text = await response.text();
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch (_) {}
+      if (!response.ok) {
+        throw new Error(json ? JSON.stringify(json, null, 2) : text || response.statusText);
+      }
+      return json;
+    }
+
+    function getAudioUploadIds() {
+      return $("audioUploadIds").value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+
+    function numberValue(id) {
+      return Number($(id).value);
+    }
+
+    function boolValue(id) {
+      return $(id).checked;
+    }
+
+    function buildTrainRequest(audioUploadIds) {
+      return {
+        title: $("title").value.trim(),
+        description: $("description").value.trim(),
+        audioUploadIds: audioUploadIds,
+        sampleRate: $("sampleRate").value,
+        version: $("version").value,
+        ifF0: boolValue("ifF0"),
+        f0Method: $("f0Method").value,
+        totalEpochs: numberValue("totalEpochs"),
+        saveEveryEpoch: numberValue("saveEveryEpoch"),
+        batchSize: numberValue("batchSize"),
+        numProcesses: numberValue("numProcesses"),
+        gpuDevicesTrain: $("gpuDevicesTrain").value.trim(),
+        gpusForRmvpe: $("gpusForRmvpe").value.trim(),
+        speakerId: numberValue("speakerId"),
+        saveOnlyLatest: boolValue("saveOnlyLatest"),
+        cacheDatasetInGpu: boolValue("cacheDatasetInGpu"),
+        saveWeightsEveryEpoch: boolValue("saveWeightsEveryEpoch"),
+        pretrainedG: $("pretrainedG").value.trim(),
+        pretrainedD: $("pretrainedD").value.trim(),
+        preprocessPer: numberValue("preprocessPer"),
+        disablePreprocessParallel: boolValue("disablePreprocessParallel"),
+        extractInfo: $("extractInfo").value.trim(),
+        indexKmeansThreshold: numberValue("indexKmeansThreshold"),
+        indexKmeansCenters: numberValue("indexKmeansCenters"),
+        indexBatchSize: numberValue("indexBatchSize"),
+        indexNprobe: numberValue("indexNprobe")
+      };
+    }
+
+    async function createTrainJob(audioUploadIds) {
+      const body = buildTrainRequest(audioUploadIds);
+      log("Create training job", body);
+      const result = await apiFetch("/train-services/jobs", {
+        method: "POST",
+        body: JSON.stringify(body)
+      });
+      log("Training job queued", result.data);
+      return result.data;
+    }
+
+    function connectProgressSocket(trainJobId) {
+      if (ws) ws.close();
+      currentTrainJobId = trainJobId;
+      saveState();
+      const url = `${wsBase()}/train-services/jobs/${encodeURIComponent(trainJobId)}/ws?token=${encodeURIComponent(token())}`;
+      log("Open WebSocket", { url });
+      ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        log("WebSocket connected");
+      };
+
+      ws.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        log("WebSocket message", payload);
+        const data = payload.data || {};
+        if (typeof data.progress === "number") {
+          progressBar.value = data.progress;
+          saveState();
+        }
+        if (data.status) {
+          const kind = data.status === "succeeded" ? "ok"
+            : data.status === "failed" ? "fail"
+            : data.status === "running" ? ""
+            : "warn";
+          setStatus(`${data.status} | ${data.stage || ""} | ${data.progress || 0}%`, kind);
+        }
+        if (data.status === "succeeded") {
+          log("Training succeeded. Use this rvcModelId for inference.", {
+            rvcModelId: data.rvcModelId
+          });
+        }
+        if (data.status === "failed") {
+          log("Training failed", { error: data.error });
+        }
+      };
+
+      ws.onerror = () => {
+        log("WebSocket error. Check token, trainJobId, Redis, and server logs.");
+      };
+
+      ws.onclose = (event) => {
+        log("WebSocket closed", { code: event.code, reason: event.reason });
+        setTimeout(async () => {
+          try {
+            const status = await pollCurrentJob();
+            if (status && !["succeeded", "failed"].includes(status.status) && token()) {
+              log("Reconnect WebSocket after close");
+              connectProgressSocket(currentTrainJobId);
+            }
+          } catch (error) {
+            log("Reconnect skipped", { message: error.message });
+          }
+        }, 2500);
+      };
+    }
+
+    async function startTraining() {
+      if (!token()) {
+        alert("Bạn cần nhập accessToken.");
+        return;
+      }
+      const audioUploadIds = getAudioUploadIds();
+      if (!audioUploadIds.length) {
+        alert("Bạn cần nhập ít nhất 1 audioUploadId.");
+        return;
+      }
+
+      startBtn.disabled = true;
+      progressBar.value = 0;
+      setStatus("starting", "warn");
+
+      try {
+        log("Use existing audioUploadIds", audioUploadIds);
+        const job = await createTrainJob(audioUploadIds);
+        setStatus(`${job.status} | ${job.stage} | ${job.progress}%`, "warn");
+        connectProgressSocket(job.trainJobId);
+      } catch (error) {
+        setStatus("failed", "fail");
+        log("Error", { message: error.message });
+        alert(error.message);
+      } finally {
+        startBtn.disabled = false;
+      }
+    }
+
+    $("startBtn").addEventListener("click", startTraining);
+    $("reconnectBtn").addEventListener("click", () => {
+      if (!currentTrainJobId) {
+        alert("Chưa có trainJobId để reconnect.");
+        return;
+      }
+      connectProgressSocket(currentTrainJobId);
+    });
+    $("pollBtn").addEventListener("click", () => {
+      pollCurrentJob().catch((error) => {
+        log("Poll error", { message: error.message });
+        alert(error.message);
+      });
+    });
+    $("clearBtn").addEventListener("click", () => {
+      logEl.textContent = "";
+      progressBar.value = 0;
+      currentTrainJobId = "";
+      localStorage.removeItem(STORAGE_KEY);
+      setStatus("idle", "warn");
+    });
+    $("apiBase").addEventListener("change", saveState);
+    $("accessToken").addEventListener("input", saveState);
+    $("audioUploadIds").addEventListener("input", saveState);
+    restoreState();
+  </script>
+</body>
+</html>

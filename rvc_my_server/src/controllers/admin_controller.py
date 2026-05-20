@@ -9,7 +9,12 @@ from src.services.admin_service import (
     admin_refresh_access_token,
     list_all_users,
 )
-from src.services.asset_service import get_assets_status, setup_default_assets
+from src.services.asset_service import (
+    get_assets_status,
+    get_training_assets_status,
+    setup_default_assets,
+    setup_training_assets,
+)
 from src.services.system_service import get_torch_status
 from src.utils.send_response import send_error_response, send_success_response
 
@@ -69,6 +74,49 @@ class AdminController:
             return send_success_response(200, "Assets status retrieved", result)
         except Exception as exc:
             logger.exception("Error in admin get_assets_status")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def get_training_assets_status(self):
+        try:
+            result = get_training_assets_status()
+            return send_success_response(
+                200,
+                "Training assets status retrieved",
+                result,
+            )
+        except Exception as exc:
+            logger.exception("Error in admin get_training_assets_status")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def setup_training_assets(self, force: bool):
+        try:
+            result = setup_training_assets(force=force)
+            if result["ready"]:
+                return send_success_response(200, "Training assets are ready", result)
+
+            pretrained_failed = any(
+                item.get("status") == "failed"
+                for item in result.get("pretrainedSetup", [])
+            )
+            infer_failed = not result.get("inferSetup", {}).get("ready", False)
+            mute_requires_copy = (
+                result.get("muteSetup", {}).get("status")
+                == "missing_manual_copy_required"
+            )
+            if mute_requires_copy and not (pretrained_failed or infer_failed):
+                return send_success_response(
+                    200,
+                    "Training assets downloaded; logs/mute requires manual copy",
+                    result,
+                )
+
+            return send_error_response(
+                500,
+                "TRAINING_ASSET_SETUP_FAILED",
+                "Some training assets failed to install",
+            )
+        except Exception as exc:
+            logger.exception("Error in admin setup_training_assets")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
     async def torch_status(self):

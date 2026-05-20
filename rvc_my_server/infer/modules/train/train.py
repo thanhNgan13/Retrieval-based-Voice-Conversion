@@ -77,6 +77,7 @@ from infer.lib.train.mel_processing import mel_spectrogram_torch, spec_to_mel_to
 from infer.lib.train.process_ckpt import savee
 
 global_step = 0
+RVC_TRAIN_SUCCESS_EXIT_CODE = 2333333
 
 
 class EpochRecorder:
@@ -103,6 +104,9 @@ def main():
         n_gpus = 1
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = str(randint(20000, 55555))
+    # Windows torch builds often do not include libuv support. PyTorch 2.x may
+    # request libuv for TCPStore by default; disable it for gloo/env:// training.
+    os.environ.setdefault("USE_LIBUV", "0")
     children = []
     logger = utils.get_logger(hps.model_dir)
     for i in range(n_gpus):
@@ -115,10 +119,15 @@ def main():
 
     for i in range(n_gpus):
         children[i].join()
+    success_codes = (0, None, RVC_TRAIN_SUCCESS_EXIT_CODE)
+    failed = [p.exitcode for p in children if p.exitcode not in success_codes]
+    if failed:
+        raise SystemExit("RVC train child process failed with exit codes: %s" % failed)
 
 
 def run(rank, n_gpus, hps, logger: logging.Logger):
     global global_step
+    os.environ.setdefault("USE_LIBUV", "0")
     if rank == 0:
         # logger = utils.get_logger(hps.model_dir)
         logger.info(hps)

@@ -2,6 +2,9 @@ import os
 import sys
 import traceback
 
+now_dir = os.getcwd()
+sys.path.append(now_dir)
+
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
@@ -18,6 +21,9 @@ else:
     os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
     version = sys.argv[6]
     is_half = sys.argv[7].lower() == "true"
+from infer.lib.fairseq_torch_load_compat import apply_fairseq_torch_load_compat
+
+apply_fairseq_torch_load_compat()
 import fairseq
 import numpy as np
 import soundfile as sf

@@ -27,5 +27,17 @@ class Settings(BaseSettings):
     # Local cache for downloaded model/.index files (per rvcModelId) and infer outputs.
     INFER_CACHE_DIR: str = "./cache"
 
+    # Redis/Celery for long-running RVC training jobs + realtime progress events.
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
+
+    # Local workspace for Celery training jobs.
+    TRAIN_CACHE_DIR: str = "./cache/train_jobs"
+
+    # Signed URL expiry for direct upload/download.
+    SIGNED_UPLOAD_URL_EXPIRES_SECONDS: int = 3600
+    SIGNED_DOWNLOAD_URL_EXPIRES_SECONDS: int = 3600
+
 
 settings = Settings()

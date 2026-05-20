@@ -135,6 +135,17 @@ def authenticate_token(
     return AuthContext(user_id=user_id, payload=payload, is_admin=False)
 
 
+def verify_user_access_token(token: str) -> AuthContext:
+    payload = _verify(token, settings.JWT_SECRET)
+    user_id = payload.get("userId")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "Invalid Token", "message": "Access Token Invalid Or Expired"},
+        )
+    return AuthContext(user_id=user_id, payload=payload, is_admin=False)
+
+
 def authenticate_token_admin(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_admin_scheme),
 ) -> AuthContext:

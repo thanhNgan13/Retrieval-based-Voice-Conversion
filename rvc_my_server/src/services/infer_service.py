@@ -8,7 +8,7 @@ import soundfile as sf
 from fastapi import UploadFile
 
 from src.config.firebase import get_bucket
-from src.models.rvc_model_model import get_rvc_model_by_id
+from src.models.user_rvc_model_model import get_accessible_rvc_model_by_id
 from src.services import infer_engine
 from src.utils.storage_helpers import firebase_download_url
 
@@ -108,7 +108,7 @@ def convert_voice(
         raise InvalidInferRequestError("audio file is required")
 
     logger.info("[infer] looking up model %s in Firestore", rvc_model_id)
-    model_doc = get_rvc_model_by_id(rvc_model_id)
+    model_doc = get_accessible_rvc_model_by_id(user_id, rvc_model_id)
     if not model_doc:
         raise ModelNotFoundError(f"RVC model '{rvc_model_id}' not found")
 
