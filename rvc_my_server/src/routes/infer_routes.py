@@ -135,3 +135,89 @@ async def convert(
         protect=protect,
         auth=auth,
     )
+
+
+@router.post(
+    "/convert/private",
+    summary="Đổi giọng bằng private RVC model của user hiện tại",
+    description=(
+        "Upload audio nguồn + `rvcModelId` của model private thuộc user đang request.\n\n"
+        "Khác với `/infer-services/convert`, API này chỉ tìm model trong "
+        "`users/{currentUserId}/rvc_models/{rvcModelId}` và không fallback sang "
+        "collection public `rvc_models`."
+    ),
+)
+async def convert_private(
+    audio: UploadFile = File(
+        ...,
+        description="File audio nguồn cần đổi giọng.",
+    ),
+    rvcModelId: str = Form(
+        ...,
+        description=(
+            "ID của private RVC model thuộc user hiện tại. Lấy từ "
+            "`GET /train-services/models` hoặc `GET /train-services/models/{id}`."
+        ),
+        examples=["rvc_1779180318216_7f0d47ae-364a-4e18-9944-ce53b2bf1f11"],
+    ),
+    speakerId: int = Form(
+        default=0,
+        ge=0,
+        description="Speaker ID trong model đa người nói. Single-speaker dùng `0`.",
+    ),
+    f0UpKey: int = Form(
+        default=0,
+        ge=-24,
+        le=24,
+        description="Dịch tông giọng theo semitone. `0` = giữ nguyên pitch nguồn.",
+    ),
+    f0Method: str = Form(
+        default="rmvpe",
+        description="Thuật toán F0: `pm`, `harvest`, `crepe`, hoặc `rmvpe`.",
+        examples=["rmvpe"],
+    ),
+    indexRate: float = Form(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        description="Tỉ lệ trộn feature retrieval từ `.index` FAISS.",
+    ),
+    filterRadius: int = Form(
+        default=3,
+        ge=0,
+        le=7,
+        description="Bán kính median filter cho F0, chủ yếu ảnh hưởng khi `f0Method=harvest`.",
+    ),
+    resampleSr: int = Form(
+        default=0,
+        ge=0,
+        le=48000,
+        description="Sample rate đầu ra. `0` = giữ sample rate gốc của model.",
+    ),
+    rmsMixRate: float = Form(
+        default=0.25,
+        ge=0.0,
+        le=1.0,
+        description="Tỉ lệ trộn bao âm lượng RMS của nguồn vào kết quả.",
+    ),
+    protect: float = Form(
+        default=0.33,
+        ge=0.0,
+        le=0.5,
+        description="Bảo vệ phụ âm vô thanh / âm tĩnh để giảm artifact.",
+    ),
+    auth: AuthContext = Depends(authenticate_token),
+):
+    return await infer_controller.convert_private(
+        audio_file=audio,
+        rvc_model_id=rvcModelId,
+        speaker_id=speakerId,
+        f0_up_key=f0UpKey,
+        f0_method=f0Method,
+        index_rate=indexRate,
+        filter_radius=filterRadius,
+        resample_sr=resampleSr,
+        rms_mix_rate=rmsMixRate,
+        protect=protect,
+        auth=auth,
+    )

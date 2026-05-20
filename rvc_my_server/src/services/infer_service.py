@@ -8,7 +8,10 @@ import soundfile as sf
 from fastapi import UploadFile
 
 from src.config.firebase import get_bucket
-from src.models.user_rvc_model_model import get_accessible_rvc_model_by_id
+from src.models.user_rvc_model_model import (
+    get_accessible_rvc_model_by_id,
+    get_user_rvc_model_by_id,
+)
 from src.services import infer_engine
 from src.utils.storage_helpers import firebase_download_url
 
@@ -29,7 +32,18 @@ class InferRuntimeError(Exception):
     pass
 
 
-def _ensure_model_cached(rvc_model_id: str, model_doc: dict) -> Tuple[str, str]:
+def _safe_cache_key(value: str) -> str:
+    return "".join(c if c.isascii() and (c.isalnum() or c in "._-") else "_" for c in value)
+
+
+def _build_model_cache_key(user_id: str, rvc_model_id: str, model_doc: dict) -> str:
+    if model_doc.get("visibility") == "private" or model_doc.get("user_id"):
+        owner_id = model_doc.get("user_id") or user_id
+        return _safe_cache_key(f"user_{owner_id}_{rvc_model_id}")
+    return _safe_cache_key(rvc_model_id)
+
+
+def _ensure_model_cached(model_cache_key: str, model_doc: dict) -> Tuple[str, str]:
     """Download .pth and .index from Storage if not already in local cache.
     Returns (pth_filename_in_weight_root, index_local_absolute_path).
     """
@@ -37,8 +51,8 @@ def _ensure_model_cached(rvc_model_id: str, model_doc: dict) -> Tuple[str, str]:
     weights_dir = cache_paths["weights"]
     indices_dir = cache_paths["indices"]
 
-    pth_filename = f"{rvc_model_id}.pth"
-    index_filename = f"{rvc_model_id}.index"
+    pth_filename = f"{model_cache_key}.pth"
+    index_filename = f"{model_cache_key}.index"
     pth_local = weights_dir / pth_filename
     index_local = indices_dir / index_filename
 
@@ -99,6 +113,7 @@ def convert_voice(
     rms_mix_rate: float,
     protect: float,
     user_id: str,
+    private_only: bool = False,
 ) -> dict:
     if f0_method not in VALID_F0_METHODS:
         raise InvalidInferRequestError(
@@ -107,9 +122,20 @@ def convert_voice(
     if not audio_file or not audio_file.filename:
         raise InvalidInferRequestError("audio file is required")
 
-    logger.info("[infer] looking up model %s in Firestore", rvc_model_id)
-    model_doc = get_accessible_rvc_model_by_id(user_id, rvc_model_id)
+    logger.info(
+        "[infer] looking up model %s in Firestore (private_only=%s)",
+        rvc_model_id,
+        private_only,
+    )
+    if private_only:
+        model_doc = get_user_rvc_model_by_id(user_id, rvc_model_id)
+    else:
+        model_doc = get_accessible_rvc_model_by_id(user_id, rvc_model_id)
     if not model_doc:
+        if private_only:
+            raise ModelNotFoundError(
+                f"Private RVC model '{rvc_model_id}' not found for current user"
+            )
         raise ModelNotFoundError(f"RVC model '{rvc_model_id}' not found")
 
     conversion_id = f"conv_{int(time.time() * 1000)}_{uuid_lib.uuid4()}"
@@ -122,17 +148,18 @@ def convert_voice(
             vc, _config = infer_engine.get_engine()
 
             logger.info("[infer] %s — ensuring model .pth + .index cached locally", conversion_id)
-            pth_filename, index_local_path = _ensure_model_cached(rvc_model_id, model_doc)
+            model_cache_key = _build_model_cache_key(user_id, rvc_model_id, model_doc)
+            pth_filename, index_local_path = _ensure_model_cached(model_cache_key, model_doc)
 
             # Only reload net_g when the requested model differs from the currently-loaded one.
-            if infer_engine.get_current_model_id() != rvc_model_id:
+            if infer_engine.get_current_model_id() != model_cache_key:
                 logger.info(
                     "[infer] %s — loading model into VC (vc.get_vc); this also loads Hubert on first call",
                     conversion_id,
                 )
                 t_load = time.time()
                 vc.get_vc(pth_filename)
-                infer_engine.set_current_model_id(rvc_model_id)
+                infer_engine.set_current_model_id(model_cache_key)
                 logger.info(
                     "[infer] %s — model loaded in %.1fs", conversion_id, time.time() - t_load
                 )
