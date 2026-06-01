@@ -50,8 +50,12 @@ def _bootstrap() -> None:
     cache_root = (Path(settings.INFER_CACHE_DIR) if Path(settings.INFER_CACHE_DIR).is_absolute()
                   else SERVER_ROOT / settings.INFER_CACHE_DIR).resolve()
 
-    for sub in ("hubert", "rmvpe"):
+    for sub in ("hubert", "rmvpe", "uvr5_weights"):
         (assets_root / sub).mkdir(parents=True, exist_ok=True)
+    (assets_root / "uvr5_weights" / "onnx_dereverb_By_FoxJoy").mkdir(
+        parents=True,
+        exist_ok=True,
+    )
     for sub in ("weights", "indices", "inputs", "outputs"):
         (cache_root / sub).mkdir(parents=True, exist_ok=True)
 
@@ -60,6 +64,7 @@ def _bootstrap() -> None:
     os.environ["index_root"] = str(cache_root / "indices")
     os.environ["outside_index_root"] = str(cache_root / "indices")
     os.environ["rmvpe_root"] = str(assets_root / "rmvpe")
+    os.environ["weight_uvr5_root"] = str(assets_root / "uvr5_weights")
 
     # cwd at SERVER_ROOT so relative 'assets/hubert/hubert_base.pt' inside RVC code works.
     os.chdir(SERVER_ROOT)
@@ -80,6 +85,40 @@ def _bootstrap() -> None:
     )
 
 
+def _load_config_locked():
+    if _state["config"] is None:
+        _bootstrap()
+
+        logger.info("Importing configs.config.Config ...")
+        import time
+
+        t = time.time()
+        saved_argv = sys.argv
+        sys.argv = ["rvc_my_server_infer"]
+        try:
+            from configs.config import Config
+
+            logger.info("  ↳ configs.config imported in %.1fs", time.time() - t)
+            logger.info("Constructing Config() (querying CUDA + setting fp16/x_pad) ...")
+            t = time.time()
+            _state["config"] = Config()
+            logger.info(
+                "  ↳ Config ready in %.1fs (device=%s, is_half=%s)",
+                time.time() - t,
+                _state["config"].device,
+                _state["config"].is_half,
+            )
+        finally:
+            sys.argv = saved_argv
+    return _state["config"]
+
+
+def get_config():
+    """Return RVC Config without constructing the full VC conversion engine."""
+    with _lock:
+        return _load_config_locked()
+
+
 def get_engine():
     """Return (vc, config). Lazily initializes on first call.
 
@@ -96,25 +135,7 @@ def get_engine():
             logger.info(
                 "Bootstrapping infer engine (FIRST CALL — heavy imports, can take 30–60s)..."
             )
-            _bootstrap()
-
-            logger.info("Importing configs.config.Config ...")
-            t = time.time()
-            saved_argv = sys.argv
-            sys.argv = ["rvc_my_server_infer"]
-            try:
-                from configs.config import Config
-                logger.info("  ↳ configs.config imported in %.1fs", time.time() - t)
-
-                logger.info("Constructing Config() (querying CUDA + setting fp16/x_pad) ...")
-                t = time.time()
-                _state["config"] = Config()
-                logger.info(
-                    "  ↳ Config ready in %.1fs (device=%s, is_half=%s)",
-                    time.time() - t, _state["config"].device, _state["config"].is_half,
-                )
-            finally:
-                sys.argv = saved_argv
+            _load_config_locked()
 
             logger.info(
                 "Importing infer.modules.vc.modules.VC (this triggers torch/fairseq/librosa/faiss) ..."

@@ -35,6 +35,36 @@ _DEFAULT_ASSETS = (
     ("rmvpe.pt", "rmvpe/rmvpe.pt", "rmvpe", 181),
 )
 
+_UVR5_ASSETS = (
+    ("uvr5_weights/HP2_all_vocals.pth", "uvr5_weights/HP2_all_vocals.pth", "HP2_all_vocals"),
+    ("uvr5_weights/HP3_all_vocals.pth", "uvr5_weights/HP3_all_vocals.pth", "HP3_all_vocals"),
+    (
+        "uvr5_weights/HP5_only_main_vocal.pth",
+        "uvr5_weights/HP5_only_main_vocal.pth",
+        "HP5_only_main_vocal",
+    ),
+    (
+        "uvr5_weights/VR-DeEchoAggressive.pth",
+        "uvr5_weights/VR-DeEchoAggressive.pth",
+        "VR-DeEchoAggressive",
+    ),
+    (
+        "uvr5_weights/VR-DeEchoDeReverb.pth",
+        "uvr5_weights/VR-DeEchoDeReverb.pth",
+        "VR-DeEchoDeReverb",
+    ),
+    (
+        "uvr5_weights/VR-DeEchoNormal.pth",
+        "uvr5_weights/VR-DeEchoNormal.pth",
+        "VR-DeEchoNormal",
+    ),
+    (
+        "uvr5_weights/onnx_dereverb_By_FoxJoy/vocals.onnx",
+        "uvr5_weights/onnx_dereverb_By_FoxJoy/vocals.onnx",
+        "onnx_dereverb_By_FoxJoy/vocals.onnx",
+    ),
+)
+
 
 _PRETRAINED_ASSETS = tuple(
     (f"{folder}/{name}", f"{folder}/{name}", f"{folder}/{name}")
@@ -161,6 +191,72 @@ def get_assets_status() -> dict:
     items = []
     all_ready = True
     for _, rel_dest, name, _ in _DEFAULT_ASSETS:
+        dest = assets_root / rel_dest
+        present = dest.is_file()
+        all_ready = all_ready and present
+        items.append({
+            "name": name,
+            "present": present,
+            "path": str(dest.relative_to(assets_root.parent)),
+            "sizeBytes": dest.stat().st_size if present else 0,
+        })
+
+    return {
+        "assetsRoot": str(assets_root),
+        "assets": items,
+        "ready": all_ready,
+    }
+
+
+def setup_uvr5_assets(force: bool = False) -> dict:
+    """Download UVR5 separation weights if missing."""
+    assets_root: Path = infer_engine.get_assets_root()
+    base = _base_url()
+
+    items = []
+    for rel_url, rel_dest, name in _UVR5_ASSETS:
+        dest = assets_root / rel_dest
+        if dest.is_file() and not force:
+            items.append({
+                "name": name,
+                "status": "already_present",
+                "path": str(dest.relative_to(assets_root.parent)),
+                "sizeBytes": dest.stat().st_size,
+            })
+            continue
+        try:
+            logger.info("Downloading UVR5 asset %s → %s", name, dest)
+            _download_file(base + rel_url, dest)
+            items.append({
+                "name": name,
+                "status": "downloaded",
+                "path": str(dest.relative_to(assets_root.parent)),
+                "sizeBytes": dest.stat().st_size,
+            })
+        except Exception as exc:
+            logger.exception("Failed to download UVR5 asset %s", name)
+            items.append({
+                "name": name,
+                "status": "failed",
+                "path": str(dest),
+                "error": str(exc),
+            })
+
+    return {
+        "baseUrl": base,
+        "assetsRoot": str(assets_root),
+        "assets": items,
+        "ready": all(i["status"] in ("downloaded", "already_present") for i in items),
+    }
+
+
+def get_uvr5_assets_status() -> dict:
+    """Return current presence status of UVR5 assets, without downloading."""
+    assets_root: Path = infer_engine.get_assets_root()
+
+    items = []
+    all_ready = True
+    for _, rel_dest, name in _UVR5_ASSETS:
         dest = assets_root / rel_dest
         present = dest.is_file()
         all_ready = all_ready and present

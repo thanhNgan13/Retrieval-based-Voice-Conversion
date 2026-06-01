@@ -79,6 +79,40 @@ async def assets_status(_: AuthContext = Depends(authenticate_token_admin)):
     return await admin_controller.get_assets_status()
 
 
+@router.post(
+    "/setup-uvr5-assets",
+    summary="Tải các model UVR5 cần cho tách vocal/instrumental",
+    description=(
+        "Kiểm tra `assets/uvr5_weights/*`. File nào thiếu sẽ tải từ Hugging Face "
+        "(`lj1995/VoiceConversionWebUI`). Sau khi gọi thành công, API "
+        "`/infer-services/separate` có thể dùng `modelName=HP2_all_vocals` mặc định.\n\n"
+        + _SETUP_ASSETS_TIMEOUT_NOTE
+        + "\n\nĐặt env `RVC_HF_MIRROR=1` nếu mạng truy cập huggingface.co không ổn định "
+        "(sẽ dùng `hf-mirror.com`)."
+    ),
+)
+async def setup_uvr5_assets(
+    force: bool = Query(
+        default=False,
+        description=(
+            "`true` = tải lại kể cả file đã tồn tại. "
+            "`false` *(mặc định)* = bỏ qua file đã có."
+        ),
+    ),
+    _: AuthContext = Depends(authenticate_token_admin),
+):
+    return await admin_controller.setup_uvr5_assets(force=force)
+
+
+@router.get(
+    "/uvr5-assets-status",
+    summary="Kiểm tra trạng thái asset UVR5 (không tải)",
+    description="Trả về `present`/`absent` cho các weight UVR5 dùng để tách vocal/instrumental.",
+)
+async def uvr5_assets_status(_: AuthContext = Depends(authenticate_token_admin)):
+    return await admin_controller.get_uvr5_assets_status()
+
+
 @router.get(
     "/training-assets-status",
     summary="Kiểm tra asset cần cho training RVC (không cài/tải)",

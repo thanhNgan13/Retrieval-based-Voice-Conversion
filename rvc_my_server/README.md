@@ -41,7 +41,7 @@ service (xem mục Cloud Run bên dưới).
 |---|---|:-:|:-:|---|
 | `redis` | `redis:7-alpine` (~30 MB) | 6379 | ✗ | Celery broker + Pub/Sub progress |
 | `api-light` | `rvc-my-server:light` (~500 MB) | **8000** | ✗ | `/auth-services`, `/user-services`, `/rvc-model-services`, `/train-services`, `/admin-services` |
-| `infer` | `rvc-my-server:gpu` (~9 GB) | **8001** | ✓ | CHỈ `/infer-services/*` (voice conversion) |
+| `infer` | `rvc-my-server:gpu` (~9 GB) | **8001** | ✓ | CHỈ `/infer-services/*` (voice conversion + UVR5 separation) |
 | `worker` | `rvc-my-server:gpu` (cùng image với infer) | — | ✓ | Celery worker chạy training pipeline |
 
 Routes được bật/tắt theo env var `APP_ROLE` (`light` / `infer` / `all`). Cùng
@@ -154,6 +154,24 @@ Cả 3 service api-light/infer/worker mount chung 3 thứ:
 
 → Tải Hubert/RMVPE 1 lần qua `POST /admin-services/setup-assets` ở api-light,
 file ghi vào `./assets/` trên host → infer container đọc được ngay (cùng volume).
+
+Với chức năng tách bài hát thành vocal/instrumental, tải UVR5 weights 1 lần qua:
+
+```text
+POST /dev/v1/admin-services/setup-uvr5-assets
+GET  /dev/v1/admin-services/uvr5-assets-status
+```
+
+Sau đó gọi trên infer service:
+
+```text
+GET  /dev/v1/infer-services/separation-models
+POST /dev/v1/infer-services/separate
+```
+
+`POST /infer-services/separate` nhận multipart form gồm `audio`, tuỳ chọn
+`modelName=HP2_all_vocals`, `agg=10`, `outputFormat=wav`, và trả về
+`outputs.vocal.url` + `outputs.instrumental.url`.
 
 ### Deploy Cloud Run từ kiến trúc này
 
