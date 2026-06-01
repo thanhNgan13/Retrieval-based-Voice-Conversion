@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1.6
+#
+# RVC My Server — CPU-only image for the api-light container.
+#
+# Hosts everything EXCEPT /infer-services/*: auth, user, rvc-model meta,
+# train-services (signed URLs, Celery enqueue, WebSocket progress relay),
+# admin. No torch, no RVC ML stack — image stays ~500 MB.
+#
+# Build: docker build -f Dockerfile.light -t rvc-my-server:light .
+# Or:    docker compose build api-light
+#
+FROM python:3.10-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=0 \
+    TZ=Asia/Ho_Chi_Minh
+
+WORKDIR /app
+
+# Slim base needs just a few system packages for certs + timezone data.
+# gcc/libffi-dev kept for any transitive C extension that lacks a wheel
+# (cryptography, etc. — most ship wheels, but be safe).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl tzdata \
+        gcc libc6-dev libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip "setuptools<81" wheel
+
+COPY requirements-light.txt /app/requirements-light.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r /app/requirements-light.txt
+
+# Application code. The infer/, configs/, i18n/ folders are still copied
+# (they sit on disk ~50 MB total) but no module under them is imported
+# by api-light routes — APP_ROLE=light skips infer_router entirely.
+COPY . /app
+
+RUN mkdir -p /app/assets/hubert /app/assets/rmvpe /app/cache/weights \
+             /app/cache/indices /app/cache/inputs /app/cache/outputs \
+             /app/cache/train_jobs
+
+EXPOSE 8000
+
+# APP_ROLE is set by docker-compose; default to "light" so this image's
+# default behavior matches its purpose if it is run standalone.
+ENV APP_ROLE=light
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

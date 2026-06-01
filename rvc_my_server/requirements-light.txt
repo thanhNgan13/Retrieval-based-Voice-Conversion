@@ -1,0 +1,38 @@
+# Lightweight requirements for the api-light container (CPU-only).
+#
+# This file installs JUST what's needed to serve auth, user, rvc-model meta,
+# train-services (signed URLs + Celery enqueue + WebSocket progress relay),
+# and admin endpoints. It deliberately OMITS the heavy ML stack
+# (torch, fairseq, faiss, librosa, numba, ...) which lives only in the GPU
+# image (Dockerfile) used by the `infer` and `worker` containers.
+#
+# Image size impact: api-light ~500 MB vs GPU image ~9 GB.
+
+# ---- Web framework ----
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+pydantic-settings==2.6.1
+email-validator==2.2.0
+python-multipart==0.0.12
+
+# ---- Auth ----
+PyJWT==2.9.0
+bcrypt==4.2.0
+
+# ---- Firebase / GCP ----
+firebase-admin==6.5.0
+google-cloud-firestore==2.19.0
+google-cloud-storage==2.18.2
+
+# ---- Async queue + realtime ----
+celery[redis]==5.4.0
+redis==5.2.0
+
+# ---- Utilities ----
+python-dotenv==1.0.1
+requests>=2.32.0
+
+# setuptools<81 keeps pkg_resources available for any transitive code that
+# still imports it (fairseq is not installed here, but harmless to pin).
+setuptools<81

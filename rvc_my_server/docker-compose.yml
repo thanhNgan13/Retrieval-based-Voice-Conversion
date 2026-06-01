@@ -1,0 +1,136 @@
+# 4-service stack mirroring the production layout:
+#
+#   redis      — CPU, broker + pubsub
+#   api-light  — CPU, all routes EXCEPT /infer-services (port 8000)
+#   infer      — GPU, ONLY /infer-services (port 8001)
+#   worker     — GPU, Celery worker for training (no HTTP port)
+#
+# Mobile / client uses TWO base URLs:
+#   - http://localhost:8000  → api-light  (auth, user, train, rvc-model, admin)
+#   - http://localhost:8001  → infer      (voice conversion)
+#
+# Run:
+#   docker compose build                # build both images (light + gpu)
+#   docker compose up -d                # start all 4 services
+#   docker compose logs -f api-light    # tail logs of one service
+#   docker compose down                 # stop + remove containers
+#   docker compose down -v              # ... + wipe Redis state
+#
+# Requires for GPU services (infer, worker):
+#   - Docker Desktop with WSL2 + GPU support enabled.
+#   - NVIDIA driver on Windows host (do NOT install in WSL).
+#
+# Files needed at repo root:
+#   - .env                (copy .env.example, fill JWT + Firebase fields)
+#   - serviceAccount.json (Firebase service account JSON)
+
+# ─── Re-usable fragments via YAML anchors ──────────────────────────────────
+x-rvc-env: &rvc-env
+  # Containers reach Redis via the compose network DNS, not localhost.
+  REDIS_URL: redis://redis:6379/0
+  GOOGLE_APPLICATION_CREDENTIALS: /app/serviceAccount.json
+  PYTHONUNBUFFERED: "1"
+
+x-rvc-volumes: &rvc-volumes
+  - ./serviceAccount.json:/app/serviceAccount.json:ro
+  - ./assets:/app/assets
+  - ./cache:/app/cache
+
+x-rvc-gpu-deploy: &rvc-gpu-deploy
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+
+# Anchor for both GPU services (infer + worker) so they share the same image
+# build. Docker Compose only needs ONE service to actually carry the `build:`
+# directive — the other references the produced `image:` tag.
+x-rvc-gpu-build: &rvc-gpu-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: rvc-my-server:gpu
+
+# ─── Services ──────────────────────────────────────────────────────────────
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: rvc-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api-light:
+    build:
+      context: .
+      dockerfile: Dockerfile.light
+    image: rvc-my-server:light
+    container_name: rvc-api-light
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      <<: *rvc-env
+      APP_ROLE: light
+    volumes: *rvc-volumes
+    # No deploy.resources: api-light runs purely on CPU.
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  infer:
+    <<: *rvc-gpu-build
+    container_name: rvc-infer
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      <<: *rvc-env
+      APP_ROLE: infer
+    volumes: *rvc-volumes
+    deploy:
+      <<: *rvc-gpu-deploy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  worker:
+    # Reuses the same image that `infer` builds; no separate build context needed.
+    image: rvc-my-server:gpu
+    container_name: rvc-worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      infer:
+        # Ensures the GPU image is built before the worker tries to use it.
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      <<: *rvc-env
+      APP_ROLE: worker
+    volumes: *rvc-volumes
+    deploy:
+      <<: *rvc-gpu-deploy
+    # --pool=solo is required on Windows hosts (prefork is unreliable in WSL2).
+    # On Linux switch to --pool=prefork --concurrency=1 if desired.
+    command: celery -A src.config.celery_app worker --loglevel=info --pool=solo
+
+volumes:
+  redis-data:

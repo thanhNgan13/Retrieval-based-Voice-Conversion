@@ -1,5 +1,6 @@
-import json
 import asyncio
+import json
+import time
 from typing import Optional
 
 import redis.asyncio as aioredis
@@ -176,12 +177,17 @@ async def training_progress_ws(websocket: WebSocket, train_job_id: str):
     redis_client = aioredis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = redis_client.pubsub()
     await pubsub.subscribe(f"rvc_train_job:{train_job_id}")
-    last_snapshot_key = json.dumps(snapshot, sort_keys=True)
+    # Pub/Sub is the live source of truth. Firestore poll is only a safety net for
+    # the rare case a publish is lost (network blip, Redis restart) — runs every
+    # SAFETY_POLL_INTERVAL seconds, not every loop, to avoid duplicate events.
+    SAFETY_POLL_INTERVAL = 30.0
+    PUBSUB_TIMEOUT = 5.0
+    last_safety_check = time.monotonic()
     try:
         while True:
             message = await pubsub.get_message(
                 ignore_subscribe_messages=True,
-                timeout=1.0,
+                timeout=PUBSUB_TIMEOUT,
             )
             if message and message.get("type") == "message":
                 payload = json.loads(message["data"])
@@ -189,13 +195,15 @@ async def training_progress_ws(websocket: WebSocket, train_job_id: str):
                 if payload.get("status") in {"succeeded", "failed"}:
                     await websocket.send_json({"type": "terminal", "data": payload})
                     break
+                continue
 
-            latest = get_train_job_detail(train_job_id, auth.user_id)
-            latest_key = json.dumps(latest, sort_keys=True)
-            if latest_key != last_snapshot_key:
-                last_snapshot_key = latest_key
-                await websocket.send_json({"type": "snapshot", "data": latest})
-            else:
+            now = time.monotonic()
+            if now - last_safety_check >= SAFETY_POLL_INTERVAL:
+                last_safety_check = now
+                latest = get_train_job_detail(train_job_id, auth.user_id)
+                if latest.get("status") in {"succeeded", "failed"}:
+                    await websocket.send_json({"type": "terminal", "data": latest})
+                    break
                 await websocket.send_json(
                     {
                         "type": "heartbeat",
@@ -207,12 +215,10 @@ async def training_progress_ws(websocket: WebSocket, train_job_id: str):
                         },
                     }
                 )
-
-            if latest.get("status") in {"succeeded", "failed"}:
-                await websocket.send_json({"type": "terminal", "data": latest})
-                break
-
-            await asyncio.sleep(1)
+            else:
+                await websocket.send_json(
+                    {"type": "heartbeat", "data": {"trainJobId": train_job_id}}
+                )
     except WebSocketDisconnect:
         pass
     except Exception as exc:

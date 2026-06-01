@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import traceback
@@ -19,6 +20,16 @@ from src.services import infer_engine
 logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[str, int, str], None]
+
+# Train.py log format (see infer/modules/train/train.py):
+#   "====> Epoch: {N} {timer_recorder}"            — fires once per finished epoch
+#   "loss_disc=..., loss_gen=..., loss_fm=...,..."  — fires every log_interval batches
+_EPOCH_DONE_RE = re.compile(r"====>\s*Epoch:\s*(\d+)")
+_LOSS_GEN_RE = re.compile(r"loss_gen=([\d.eE+-]+)")
+# Map percent budget for the training subprocess. Steps before train end at 55%,
+# steps after train start at 80%. Train epochs fill [55..80].
+_TRAIN_PCT_FROM = 55
+_TRAIN_PCT_TO = 80
 
 
 @dataclass
@@ -307,8 +318,43 @@ def _resolve_pretrained_paths(p: RvcTrainingParams) -> tuple[str, str]:
     return (pg if os.path.isfile(pg) else "", pd if os.path.isfile(pd) else "")
 
 
+def _make_train_progress_parser(
+    total_epochs: int,
+    cb: ProgressCallback,
+) -> Callable[[str], None]:
+    """Parse train.py stdout to emit per-epoch progress (55% → 80%).
+
+    Captures epoch ticks and the latest `loss_gen` to surface in the message.
+    """
+    state = {"last_epoch": 0, "last_loss": None}
+
+    def on_line(line: str) -> None:
+        loss_match = _LOSS_GEN_RE.search(line)
+        if loss_match:
+            try:
+                state["last_loss"] = float(loss_match.group(1))
+            except ValueError:
+                pass
+
+        epoch_match = _EPOCH_DONE_RE.search(line)
+        if epoch_match:
+            epoch = int(epoch_match.group(1))
+            if epoch <= state["last_epoch"]:
+                return
+            state["last_epoch"] = epoch
+            ratio = min(1.0, epoch / max(total_epochs, 1))
+            pct = _TRAIN_PCT_FROM + int((_TRAIN_PCT_TO - _TRAIN_PCT_FROM) * ratio)
+            pct = max(_TRAIN_PCT_FROM, min(_TRAIN_PCT_TO, pct))
+            msg = "Training epoch %d/%d" % (epoch, total_epochs)
+            if state["last_loss"] is not None:
+                msg += " (loss_gen=%.3f)" % state["last_loss"]
+            cb("train", pct, msg)
+
+    return on_line
+
+
 def _step_train(root: Path, config, p: RvcTrainingParams, cb: ProgressCallback) -> None:
-    cb("train", 55, "Training RVC model")
+    cb("train", _TRAIN_PCT_FROM, "Training RVC model")
     _write_filelist(root, config, p)
     pretrained_g, pretrained_d = _resolve_pretrained_paths(p)
     args = [
@@ -350,7 +396,7 @@ def _step_train(root: Path, config, p: RvcTrainingParams, cb: ProgressCallback) 
             p.sample_rate,
             p.if_f0,
         )
-    _run(args, root)
+    _run(args, root, on_line=_make_train_progress_parser(p.total_epochs, cb))
 
 
 def _step_train_index(root: Path, p: RvcTrainingParams, cb: ProgressCallback) -> Path:

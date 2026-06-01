@@ -30,7 +30,9 @@ from src.models.user_rvc_model_model import (
     prepare_user_rvc_model_data,
 )
 from src.schemas.train_schema import CreateTrainJobRequest, CreateTrainUploadUrlsRequest
-from src.services.rvc_train_pipeline import RvcTrainingParams, run_rvc_training_pipeline
+# NOTE: rvc_train_pipeline is imported lazily inside execute_train_job because
+# it pulls numpy + sklearn + RVC ML stack at module top — the api-light image
+# does NOT install those (only the GPU image / worker does).
 from src.services.train_progress import publish_train_progress
 from src.utils.constant import PRIVATE_RVC_MODEL_FOLDER, TRAIN_UPLOAD_FOLDER
 from src.utils.cursor_pagination import normalize_limit
@@ -511,6 +513,15 @@ def _upload_private_artifact(local_path: Path, object_path: str, content_type: s
 
 
 def execute_train_job(train_job_id: str) -> None:
+    # Lazy import — only the worker container needs the heavy ML stack
+    # (numpy, sklearn, torch via run_rvc_training_pipeline → infer_engine).
+    # api-light imports execute_train_job only via from-import statements at
+    # module load is fine because this function body is never called there.
+    from src.services.rvc_train_pipeline import (
+        RvcTrainingParams,
+        run_rvc_training_pipeline,
+    )
+
     job_doc = get_train_job_by_id(train_job_id)
     if not job_doc:
         raise TrainJobNotFoundError("Training job not found")

@@ -5,7 +5,7 @@ Triển khai theo quy chuẩn trong [BACKEND_API_STANDARDS.md](BACKEND_API_STAND
 port từ Node.js/Express + Firebase Cloud Functions sang **Python/FastAPI + Cloud Run**.
 
 ## Phase 1 (đang triển khai)
-Chỉ auth + user. Chưa có infer/training. Chưa có Docker.
+Backend FastAPI có auth, user, infer và training pipeline qua Celery/Redis.
 
 - `/dev/v1/auth-services/register`, `/login`, `/refresh`, `/logout`
 - `/dev/v1/user-services/profile` (GET, PUT, DELETE), `/:userId` (GET)
@@ -14,9 +14,168 @@ Chỉ auth + user. Chưa có infer/training. Chưa có Docker.
 
 ## Chạy local
 
-### 1. Cài đặt Python 3.10+
+### 1. Cài Docker
 
-### 2. Tạo virtualenv & cài dependency
+Cài Docker Desktop. Trên Windows nên bật WSL2 backend.
+
+### 2. Cấu hình Firebase
+
+- Vào Firebase Console → Project Settings → Service Accounts → Generate new private key.
+- Lưu file JSON vào thư mục này (ví dụ `serviceAccount.json`).
+- Copy `.env.example` thành `.env`, sửa `GOOGLE_APPLICATION_CREDENTIALS`,
+  `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, và 4 secret JWT.
+
+Ví dụ nếu file service account nằm ngay trong `rvc_my_server/`:
+
+```text
+GOOGLE_APPLICATION_CREDENTIALS=./serviceAccount.json
+```
+
+### 3. Chạy Docker local với NVIDIA GPU (4 service, kiến trúc production-ready)
+
+Stack được tách thành **4 container** để CPU workload không tốn GPU. Layout
+này giống hệt khi deploy Cloud Run — mỗi service map 1-1 với 1 Cloud Run
+service (xem mục Cloud Run bên dưới).
+
+| Service | Image | Port host | GPU | Routes / Vai trò |
+|---|---|:-:|:-:|---|
+| `redis` | `redis:7-alpine` (~30 MB) | 6379 | ✗ | Celery broker + Pub/Sub progress |
+| `api-light` | `rvc-my-server:light` (~500 MB) | **8000** | ✗ | `/auth-services`, `/user-services`, `/rvc-model-services`, `/train-services`, `/admin-services` |
+| `infer` | `rvc-my-server:gpu` (~9 GB) | **8001** | ✓ | CHỈ `/infer-services/*` (voice conversion) |
+| `worker` | `rvc-my-server:gpu` (cùng image với infer) | — | ✓ | Celery worker chạy training pipeline |
+
+Routes được bật/tắt theo env var `APP_ROLE` (`light` / `infer` / `all`). Cùng
+1 code base, 2 image (light cho CPU, gpu cho infer + worker).
+
+#### Client/mobile cần biết 2 base URL
+
+```text
+# Local
+API_BASE   = http://localhost:8000/dev/v1   # auth, user, train, model, admin
+INFER_BASE = http://localhost:8001/dev/v1   # convert
+
+# Production (Cloud Run)
+API_BASE   = https://api-light-xxx.run.app/dev/v1
+INFER_BASE = https://infer-xxx.run.app/dev/v1
+```
+
+WebSocket train progress hosted trên api-light:
+`ws://localhost:8000/dev/v1/train-services/jobs/{trainJobId}/ws?token=<accessToken>`.
+
+#### Yêu cầu host
+
+- **Windows 11** (hoặc Windows 10 21H2+) với WSL2.
+- **Docker Desktop** — Settings → General → bật "Use WSL2 based engine".
+- **NVIDIA driver** ≥ 525 trên Windows host (KHÔNG cài driver trong WSL).
+- Test GPU passthrough đã ok chưa:
+  ```powershell
+  docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+  ```
+  Nếu thấy bảng GPU = OK. Nếu fail → Docker chưa thấy GPU.
+
+#### Build + chạy
+
+```powershell
+# Build cả 2 image (light ~3 phút, gpu ~20-40 phút lần đầu)
+docker compose build
+
+# Start 4 service ở background
+docker compose up -d
+
+# Xem log từng service
+docker compose logs -f api-light
+docker compose logs -f infer
+docker compose logs -f worker
+```
+
+Sau khi container chạy:
+
+| URL | Service | Mô tả |
+|---|---|---|
+| `http://127.0.0.1:8000/api-docs` | api-light | Swagger UI cho auth/user/train/model/admin |
+| `http://127.0.0.1:8000/dev/health-check` | api-light | Health check |
+| `http://127.0.0.1:8001/api-docs` | infer | Swagger UI cho /infer-services |
+| `http://127.0.0.1:8001/dev/health-check` | infer | Health check |
+| `localhost:6379` | redis | Broker (chỉ debug) |
+
+#### Xác minh GPU trong container infer
+
+```
+GET http://127.0.0.1:8001/dev/v1/admin-services/torch-status
+```
+
+Đợi — `admin-services` chạy trên api-light, không phải infer. **Để verify GPU
+trong infer container**, gắn shell vào nó:
+
+```powershell
+docker exec rvc-infer python -c "import torch; print('CUDA:', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '-')"
+```
+
+Hoặc xem log infer khi gọi `/infer-services/convert` lần đầu — sẽ thấy
+`VC engine ready (device=cuda:0, is_half=True)`.
+
+Trên api-light, gọi `/admin-services/torch-status` sẽ trả `torch.installed: false` —
+**đúng theo thiết kế** (api-light không có torch).
+
+#### Lưu ý GPU yếu (RTX 3050 4GB)
+
+Cả `infer` và `worker` share 1 GPU vật lý. VRAM 4 GB chỉ đủ cho 1 process tại
+1 thời điểm:
+
+- Khi demo **infer** → đừng chạy job train song song.
+- Khi demo **train** → đừng gọi `/infer-services/convert`.
+
+Nếu cần restart engine để giải phóng VRAM giữa hai demo:
+
+```powershell
+docker compose restart infer worker
+```
+
+Trên Cloud Run, mỗi service có GPU riêng (L4 24GB) — không có vấn đề này.
+
+#### Stop / cleanup
+
+```powershell
+docker compose down              # stop + remove containers
+docker compose down -v           # ... + wipe Redis volume
+docker compose restart worker    # restart 1 service
+docker compose build --no-cache api-light infer  # full rebuild
+```
+
+#### Volumes — file persist giữa các lần restart
+
+Cả 3 service api-light/infer/worker mount chung 3 thứ:
+
+| Host | Container | Mục đích |
+|---|---|---|
+| `./serviceAccount.json` | `/app/serviceAccount.json` (RO) | Firebase auth |
+| `./assets/` | `/app/assets/` | Hubert, RMVPE, pretrained G/D, logs/mute |
+| `./cache/` | `/app/cache/` | `.pth` user-model + infer outputs + train workspace |
+
+→ Tải Hubert/RMVPE 1 lần qua `POST /admin-services/setup-assets` ở api-light,
+file ghi vào `./assets/` trên host → infer container đọc được ngay (cùng volume).
+
+### Deploy Cloud Run từ kiến trúc này
+
+Mỗi service trong `docker-compose.yml` map 1-1 với 1 Cloud Run service:
+
+| Local service | Cloud Run | Cấu hình đề xuất |
+|---|---|---|
+| `redis` | **Memorystore Redis** (managed) | 1 GB Basic, ~$45/tháng |
+| `api-light` | Cloud Run service (CPU) | `min-instances=1` để không cold-start auth, ~$17/tháng |
+| `infer` | Cloud Run service (GPU L4) | `min-instances=0` scale-to-zero, ~$0.50/h khi dùng |
+| `worker` | Cloud Run Job hoặc Cloud Run service (GPU L4) | `min-instances=0`, trigger qua Cloud Tasks hoặc poll Redis |
+
+Mobile chỉ cần đổi 2 hằng số:
+```
+API_BASE   = https://api-light-xxx.run.app
+INFER_BASE = https://infer-xxx.run.app
+```
+
+Code app không đổi gì giữa local và production. Đó là toàn bộ giá trị của việc
+tách 4 service ngay từ đầu.
+
+### 4. Native Python local, chỉ dùng khi cần debug ngoài Docker
 
 PowerShell (Windows):
 ```powershell
@@ -36,16 +195,33 @@ python install_deps.py
 # python install_deps.py --cpu
 ```
 
-Sau khi cài xong, có thể verify GPU bằng API `GET /admin-services/torch-status` (xem mục Endpoint).
+### 5. Chạy toàn bộ native local stack bằng 1 lệnh
 
-### 3. Cấu hình Firebase
+Nếu cần chạy cả API + Celery worker + Redis cho infer/training, dùng:
 
-- Vào Firebase Console → Project Settings → Service Accounts → Generate new private key.
-- Lưu file JSON vào thư mục này (ví dụ `serviceAccount.json`).
-- Copy `.env.example` thành `.env`, sửa `GOOGLE_APPLICATION_CREDENTIALS`,
-  `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, và 4 secret JWT.
+```powershell
+.\run_all.cmd
+```
 
-### 4. Chạy server
+Hoặc chạy trực tiếp PowerShell script:
+
+```powershell
+.\run_all.ps1
+```
+
+Script sẽ ưu tiên command trong `.venv`, tự start Redis nếu máy có `redis-server`
+và Redis chưa chạy, sau đó start Celery worker + Uvicorn. Log nằm trong
+`logs/dev/`. Nhấn `Ctrl+C` để dừng các tiến trình do script tạo.
+
+Tuỳ chọn:
+
+```powershell
+.\run_all.cmd -Port 8001
+.\run_all.cmd -NoReload
+.\run_all.cmd -SkipRedis
+```
+
+### 6. Chạy server riêng lẻ
 
 ```powershell
 uvicorn main:app --reload --port 8000
@@ -55,7 +231,7 @@ uvicorn main:app --reload --port 8000
 - Swagger: `http://127.0.0.1:8000/api-docs`
 - Health: `http://127.0.0.1:8000/dev/health-check`
 
-### 5. Chạy Redis + Celery worker cho training
+### 7. Chạy Redis + Celery worker cho training theo từng terminal
 
 Training RVC chạy qua Celery, progress realtime publish qua Redis và WebSocket.
 Trên Windows nên dùng `--pool=solo` để tránh lỗi multiprocessing/fork.
@@ -89,6 +265,12 @@ assets/pretrained_v2/
 assets/weights/
 logs/mute/
 ```
+
+## Deploy Cloud Run
+
+Xem [CLOUD_RUN.md](CLOUD_RUN.md). Cloud Run production không dùng
+`run_all.ps1`; API, Redis và Celery worker nên được tách thành Cloud Run service,
+managed Redis và Cloud Run worker pool.
 
 ## Cấu trúc thư mục
 

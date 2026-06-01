@@ -1,0 +1,53 @@
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Editor / OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Secrets — never bake into image
+.env
+.env.local
+.env.production
+serviceAccount*.json
+
+# Runtime data — provided via volumes at runtime
+cache/
+logs/
+
+# Large pre-trained weights — populated via POST /admin-services/setup-assets
+assets/hubert/*.pt
+assets/rmvpe/*.pt
+assets/pretrained/
+assets/pretrained_v2/
+assets/uvr5_weights/
+assets/weights/
+
+# Documentation only
+*.md
+docs/
+
+# Compose / build files don't need to be inside the image
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Local test UI (not needed in production image)
+train_test_ui.html
