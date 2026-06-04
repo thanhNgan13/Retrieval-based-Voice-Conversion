@@ -14,6 +14,144 @@ Backend FastAPI có auth, user, infer và training pipeline qua Celery/Redis.
 
 ## Chạy local
 
+### Chạy native không Docker: API + training
+
+Các lệnh dưới đây chạy trực tiếp trên Windows/PowerShell, không dùng Docker.
+Chạy trong thư mục `rvc_my_server/`.
+
+#### 1. Setup lần đầu
+
+```powershell
+cd D:\DUT_ITF\Semester_10th\do_an_tot_nghiep\example_training_voice\Retrieval-based-Voice-Conversion-WebUI\rvc_my_server
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# fairseq 0.12.2 cần pip < 24.1.
+python -m pip install -U "pip>=23.2,<24.1"
+
+# Auto-detect GPU/CPU, cài torch và toàn bộ dependency RVC/API.
+python install_deps.py
+```
+
+Nếu muốn ép mode cài đặt:
+
+```powershell
+# Ép CUDA cụ thể, ví dụ CUDA 12.4
+python install_deps.py --cuda 12.4
+
+# Ép CPU-only
+python install_deps.py --cpu
+```
+
+#### 2. Tạo file `.env`
+
+Tạo `.env` trong `rvc_my_server/`:
+
+```env
+ENV_PREFIX=dev
+API_VERSION=v1
+PORT=8000
+
+GOOGLE_APPLICATION_CREDENTIALS=./serviceAccount.json
+FIREBASE_PROJECT_ID=your_firebase_project_id
+FIREBASE_STORAGE_BUCKET=your_bucket.appspot.com
+
+JWT_SECRET=change_me
+REFRESH_TOKEN_SECRET=change_me
+ADMIN_JWT_SECRET=change_me
+ADMIN_REFRESH_TOKEN_SECRET=change_me
+
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin
+
+ASSETS_DIR=./assets
+INFER_CACHE_DIR=./cache
+TRAIN_CACHE_DIR=./cache/train_jobs
+
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+```
+
+`GOOGLE_APPLICATION_CREDENTIALS` trỏ tới file service account Firebase, ví dụ
+`./serviceAccount.json` nếu file nằm ngay trong `rvc_my_server/`.
+
+#### 3. Chuẩn bị assets
+
+Chạy API trước, login admin trong Swagger, rồi gọi các endpoint setup asset:
+
+```text
+POST /dev/v1/admin-services/setup-assets
+POST /dev/v1/admin-services/setup-training-assets
+POST /dev/v1/admin-services/setup-uvr5-assets
+```
+
+Hoặc kiểm tra trạng thái:
+
+```text
+GET /dev/v1/admin-services/assets-status
+GET /dev/v1/admin-services/training-assets-status
+GET /dev/v1/admin-services/uvr5-assets-status
+```
+
+Training cần đủ:
+
+```text
+assets/hubert/hubert_base.pt
+assets/rmvpe/rmvpe.pt
+assets/pretrained/
+assets/pretrained_v2/
+assets/weights/
+logs/mute/
+```
+
+Nếu `logs/mute` thiếu, copy thủ công từ repo RVC đầy đủ hoặc `rvc_standalone/logs/mute`.
+
+#### 4. Chạy API + training bằng 3 terminal
+
+Terminal 1: Redis
+
+```powershell
+cd D:\DUT_ITF\Semester_10th\do_an_tot_nghiep\example_training_voice\Retrieval-based-Voice-Conversion-WebUI\rvc_my_server
+redis-server
+```
+
+Terminal 2: Celery worker chạy training
+
+```powershell
+cd D:\DUT_ITF\Semester_10th\do_an_tot_nghiep\example_training_voice\Retrieval-based-Voice-Conversion-WebUI\rvc_my_server
+.\.venv\Scripts\Activate.ps1
+
+celery -A src.config.celery_app.celery_app worker --loglevel=info --pool=solo --concurrency=1
+```
+
+Terminal 3: FastAPI
+
+```powershell
+cd D:\DUT_ITF\Semester_10th\do_an_tot_nghiep\example_training_voice\Retrieval-based-Voice-Conversion-WebUI\rvc_my_server
+.\.venv\Scripts\Activate.ps1
+
+uvicorn main:app --reload --port 8000
+```
+
+Sau khi chạy:
+
+```text
+Swagger:      http://127.0.0.1:8000/api-docs
+Health check: http://127.0.0.1:8000/dev/health-check
+API base:     http://127.0.0.1:8000/dev/v1
+WebSocket:    ws://127.0.0.1:8000/dev/v1/train-services/jobs/{trainJobId}/ws?token=<accessToken>
+```
+
+#### 5. Luồng training private model
+
+1. `POST /dev/v1/train-services/upload-urls`
+2. Client `PUT` audio binary lên từng `uploadUrl`
+3. `POST /dev/v1/train-services/jobs`
+4. Theo dõi progress bằng WebSocket hoặc `GET /dev/v1/train-services/jobs/{trainJobId}`
+5. Khi job `succeeded`, dùng `rvcModelId` để gọi `/dev/v1/infer-services/convert`
+
 ### 1. Cài Docker
 
 Cài Docker Desktop. Trên Windows nên bật WSL2 backend.
@@ -213,33 +351,7 @@ python install_deps.py
 # python install_deps.py --cpu
 ```
 
-### 5. Chạy toàn bộ native local stack bằng 1 lệnh
-
-Nếu cần chạy cả API + Celery worker + Redis cho infer/training, dùng:
-
-```powershell
-.\run_all.cmd
-```
-
-Hoặc chạy trực tiếp PowerShell script:
-
-```powershell
-.\run_all.ps1
-```
-
-Script sẽ ưu tiên command trong `.venv`, tự start Redis nếu máy có `redis-server`
-và Redis chưa chạy, sau đó start Celery worker + Uvicorn. Log nằm trong
-`logs/dev/`. Nhấn `Ctrl+C` để dừng các tiến trình do script tạo.
-
-Tuỳ chọn:
-
-```powershell
-.\run_all.cmd -Port 8001
-.\run_all.cmd -NoReload
-.\run_all.cmd -SkipRedis
-```
-
-### 6. Chạy server riêng lẻ
+### 5. Chạy server riêng lẻ
 
 ```powershell
 uvicorn main:app --reload --port 8000
@@ -249,7 +361,7 @@ uvicorn main:app --reload --port 8000
 - Swagger: `http://127.0.0.1:8000/api-docs`
 - Health: `http://127.0.0.1:8000/dev/health-check`
 
-### 7. Chạy Redis + Celery worker cho training theo từng terminal
+### 6. Chạy Redis + Celery worker cho training theo từng terminal
 
 Training RVC chạy qua Celery, progress realtime publish qua Redis và WebSocket.
 Trên Windows nên dùng `--pool=solo` để tránh lỗi multiprocessing/fork.
