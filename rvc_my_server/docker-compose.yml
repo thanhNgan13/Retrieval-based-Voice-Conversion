@@ -28,7 +28,7 @@
 x-rvc-env:
   &rvc-env # Containers reach Redis via the compose network DNS, not localhost.
   REDIS_URL: redis://redis:6379/0
-  GOOGLE_APPLICATION_CREDENTIALS: /app/serviceAccount.json
+  GOOGLE_APPLICATION_CREDENTIALS: /app/src/config/serviceAccount.json
   PYTHONUNBUFFERED: "1"
 
 x-rvc-volumes: &rvc-volumes
