@@ -25,14 +25,14 @@
 #   - serviceAccount.json (Firebase service account JSON)
 
 # ─── Re-usable fragments via YAML anchors ──────────────────────────────────
-x-rvc-env: &rvc-env
-  # Containers reach Redis via the compose network DNS, not localhost.
+x-rvc-env:
+  &rvc-env # Containers reach Redis via the compose network DNS, not localhost.
   REDIS_URL: redis://redis:6379/0
   GOOGLE_APPLICATION_CREDENTIALS: /app/serviceAccount.json
   PYTHONUNBUFFERED: "1"
 
 x-rvc-volumes: &rvc-volumes
-  - ./serviceAccount.json:/app/serviceAccount.json:ro
+  - ./src/config/serviceAccount.json:/app/src/config/serviceAccount.json:ro
   - ./assets:/app/assets
   - ./cache:/app/cache
 
