@@ -9,6 +9,11 @@ from src.services.infer_service import (
     ModelNotFoundError,
     convert_voice,
 )
+from src.services.mixing_service import (
+    InvalidMixingRequestError,
+    MixingRuntimeError,
+    mix_ai_cover,
+)
 from src.services.system_service import get_torch_status
 from src.utils.send_response import send_error_response, send_success_response
 
@@ -102,6 +107,47 @@ class InferController:
             return send_success_response(200, "Torch status retrieved", result)
         except Exception as exc:
             logger.exception("Error in torch_status")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def mix(
+        self,
+        main_vocal_file: UploadFile,
+        backup_vocal_file: UploadFile | None,
+        instrumental_file: UploadFile | None,
+        reverb_room_size: float,
+        reverb_wet: float,
+        reverb_dry: float,
+        reverb_damping: float,
+        main_gain: float,
+        backup_gain: float,
+        inst_gain: float,
+        output_format: str,
+        keep_local: bool,
+        auth: AuthContext,
+    ):
+        try:
+            result = mix_ai_cover(
+                main_vocal_file=main_vocal_file,
+                backup_vocal_file=backup_vocal_file,
+                instrumental_file=instrumental_file,
+                user_id=auth.user_id,
+                reverb_room_size=reverb_room_size,
+                reverb_wet=reverb_wet,
+                reverb_dry=reverb_dry,
+                reverb_damping=reverb_damping,
+                main_gain=main_gain,
+                backup_gain=backup_gain,
+                inst_gain=inst_gain,
+                output_format=output_format,
+                keep_local=keep_local,
+            )
+            return send_success_response(200, "Audio mixing successful", result)
+        except InvalidMixingRequestError as exc:
+            return send_error_response(400, "VALIDATION_FAILED", str(exc))
+        except MixingRuntimeError as exc:
+            return send_error_response(500, "MIXING_FAILED", str(exc))
+        except Exception as exc:
+            logger.exception("Error in audio mixing")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
 

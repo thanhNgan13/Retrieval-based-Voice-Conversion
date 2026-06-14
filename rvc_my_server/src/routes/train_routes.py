@@ -212,6 +212,7 @@ async def training_progress_ws(websocket: WebSocket, train_job_id: str):
                             "status": latest.get("status"),
                             "stage": latest.get("stage"),
                             "progress": latest.get("progress"),
+                            "elapsedMs": latest.get("elapsedMs", 0),
                         },
                     }
                 )

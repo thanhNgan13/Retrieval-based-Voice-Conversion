@@ -2,9 +2,9 @@
 
 The same code base runs in 3 modes, distinguished by the APP_ROLE env var:
 - ``all`` (default): every router — single-container / single-process deploy.
-- ``light``: everything EXCEPT /infer-services/* — runs in the CPU api-light
+- ``light``: everything EXCEPT direct GPU infer/separation routes — runs in the CPU api-light
   container in docker-compose; safe to host on Cloud Run CPU.
-- ``infer``: ONLY /infer-services/* — runs in the GPU infer container; safe to
+- ``infer``: direct GPU infer/separation routes — runs in the GPU infer container; safe to
   host on Cloud Run GPU.
 
 Workers don't go through this module (they run Celery, not Uvicorn).
@@ -27,6 +27,7 @@ def register_routes(app: FastAPI) -> None:
         from src.routes.admin_routes import router as admin_router
         from src.routes.auth_routes import router as auth_router
         from src.routes.rvc_model_routes import router as rvc_model_router
+        from src.routes.song_infer_routes import router as song_infer_router
         from src.routes.train_routes import router as train_router
         from src.routes.user_routes import router as user_router
 
@@ -43,6 +44,11 @@ def register_routes(app: FastAPI) -> None:
         )
         app.include_router(
             train_router, prefix=f"{API_BASE_PATH}/train-services", tags=["Train"]
+        )
+        app.include_router(
+            song_infer_router,
+            prefix=f"{API_BASE_PATH}/song-infer-services",
+            tags=["Song Infer Job"],
         )
         app.include_router(
             admin_router, prefix=f"{API_BASE_PATH}/admin-services", tags=["Admin"]

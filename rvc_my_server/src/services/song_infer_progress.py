@@ -6,13 +6,16 @@ from typing import Optional
 import redis
 
 from src.config.settings import settings
-from src.models.train_job_model import get_train_job_by_id, update_train_job_in_firestore
+from src.models.song_infer_job_model import (
+    get_song_infer_job_by_id,
+    update_song_infer_job_in_firestore,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def _channel(train_job_id: str) -> str:
-    return f"rvc_train_job:{train_job_id}"
+def song_infer_channel(song_infer_job_id: str) -> str:
+    return f"rvc_song_infer_job:{song_infer_job_id}"
 
 
 def _parse_timestamp(value) -> Optional[datetime]:
@@ -34,10 +37,10 @@ def _parse_timestamp(value) -> Optional[datetime]:
     return None
 
 
-def _elapsed_ms(train_job_id: str, extra_updates: Optional[dict]) -> int:
+def _elapsed_ms(song_infer_job_id: str, extra_updates: Optional[dict]) -> int:
     started_at = (extra_updates or {}).get("started_at")
     if not started_at:
-        doc = get_train_job_by_id(train_job_id) or {}
+        doc = get_song_infer_job_by_id(song_infer_job_id) or {}
         started_at = doc.get("started_at")
     started_dt = _parse_timestamp(started_at)
     if not started_dt:
@@ -45,25 +48,25 @@ def _elapsed_ms(train_job_id: str, extra_updates: Optional[dict]) -> int:
     return max(0, int((datetime.now(timezone.utc) - started_dt).total_seconds() * 1000))
 
 
-def publish_train_progress(
-    train_job_id: str,
+def publish_song_infer_progress(
+    song_infer_job_id: str,
     status: str,
     stage: str,
     progress: int,
     message: str,
-    rvc_model_id: str = "",
+    outputs: Optional[dict] = None,
     error: str = "",
     extra_updates: Optional[dict] = None,
 ) -> None:
-    elapsed_ms = _elapsed_ms(train_job_id, extra_updates)
+    elapsed_ms = _elapsed_ms(song_infer_job_id, extra_updates)
     payload = {
-        "trainJobId": train_job_id,
+        "songInferJobId": song_infer_job_id,
         "status": status,
         "stage": stage,
         "progress": max(0, min(100, int(progress))),
         "elapsedMs": elapsed_ms,
         "message": message,
-        "rvcModelId": rvc_model_id,
+        "outputs": outputs or {},
         "error": error,
     }
 
@@ -73,17 +76,22 @@ def publish_train_progress(
         "progress": payload["progress"],
         "elapsed_ms": elapsed_ms,
         "message": message,
-        "rvc_model_id": rvc_model_id,
         "error": error,
     }
+    if outputs is not None:
+        updates["outputs"] = outputs
     if extra_updates:
         updates.update(extra_updates)
 
-    update_train_job_in_firestore(train_job_id, updates)
+    update_song_infer_job_in_firestore(song_infer_job_id, updates)
 
     try:
         client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
-        client.publish(_channel(train_job_id), json.dumps(payload))
+        client.publish(song_infer_channel(song_infer_job_id), json.dumps(payload))
         client.close()
     except Exception:
-        logger.warning("Failed to publish train progress for %s", train_job_id, exc_info=True)
+        logger.warning(
+            "Failed to publish song infer progress for %s",
+            song_infer_job_id,
+            exc_info=True,
+        )

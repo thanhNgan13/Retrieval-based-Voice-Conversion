@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
 from src.controllers.infer_controller import infer_controller
@@ -239,3 +241,113 @@ async def convert_private(
         protect=protect,
         auth=auth,
     )
+
+
+@router.post(
+    "/mix",
+    summary="Mix giọng AI đã convert với backing vocal và nhạc nền theo notebook audio_mixing_guide",
+    description=(
+        "Upload giọng AI đã đổi (`mainVocal`) cùng `backupVocal` và `instrumental` nếu có. "
+        "Server chạy đúng pipeline trong `audio_mixing_guide.ipynb`:\n"
+        "1. Áp dụng `HighpassFilter()` + `Compressor(ratio=4, threshold_db=-15)` + "
+        "`Reverb(...)` lên main vocal, đọc theo block 1 giây.\n"
+        "2. Dùng pydub để mix: main vocal wet `-4 dB + mainGain`, backup "
+        "`-6 dB + backupGain`, instrumental `-7 dB + instGain`.\n"
+        "3. Upload `aiVocalsWet` và `finalMix` lên Firebase Storage.\n\n"
+        "`backupVocal` và `instrumental` là optional giống notebook: nếu thiếu, server tạo "
+        "track câm có cùng độ dài với main vocal."
+    ),
+)
+async def mix(
+    mainVocal: UploadFile = File(
+        ...,
+        description=(
+            "File giọng AI đã convert từ RVC. Đây là `ai_vocals_dry_path` trong notebook."
+        ),
+    ),
+    backupVocal: Optional[UploadFile] = File(
+        default=None,
+        description=(
+            "File giọng bè tách từ stage 2 separation. Nếu không truyền, server dùng track câm."
+        ),
+    ),
+    instrumental: Optional[UploadFile] = File(
+        default=None,
+        description=(
+            "File nhạc nền/beat tách từ stage 1 separation. Nếu không truyền, server dùng track câm."
+        ),
+    ),
+    reverbRoomSize: float = Form(
+        default=0.15,
+        ge=0.0,
+        le=1.0,
+        description="Notebook `reverb_room_size`: kích thước phòng của Reverb.",
+    ),
+    reverbWetLevel: float = Form(
+        default=0.20,
+        ge=0.0,
+        le=1.0,
+        description="Notebook `reverb_wet_level`: độ lớn tiếng vang.",
+    ),
+    reverbDryLevel: float = Form(
+        default=0.80,
+        ge=0.0,
+        le=1.0,
+        description="Notebook `reverb_dry_level`: độ lớn giọng gốc giữ lại.",
+    ),
+    reverbDamping: float = Form(
+        default=0.70,
+        ge=0.0,
+        le=1.0,
+        description="Notebook `reverb_damping`: giảm độ chói của tiếng vang.",
+    ),
+    mainGain: float = Form(
+        default=0,
+        description=(
+            "Notebook `main_gain` tính bằng dB. Server vẫn áp dụng offset gốc `-4 dB` "
+            "trước rồi mới cộng giá trị này."
+        ),
+    ),
+    backupGain: float = Form(
+        default=0,
+        description=(
+            "Notebook `backup_gain` tính bằng dB. Server vẫn áp dụng offset gốc `-6 dB` "
+            "trước rồi mới cộng giá trị này."
+        ),
+    ),
+    instGain: float = Form(
+        default=0,
+        description=(
+            "Notebook `inst_gain` tính bằng dB. Server vẫn áp dụng offset gốc `-7 dB` "
+            "trước rồi mới cộng giá trị này."
+        ),
+    ),
+    outputFormat: str = Form(
+        default="wav",
+        description=(
+            "Notebook `output_format`. Hỗ trợ `wav` hoặc `mp3`; `wav` là default."
+        ),
+        examples=["wav"],
+    ),
+    keepLocal: bool = Query(
+        default=False,
+        description="Chỉ dùng để debug: giữ lại workspace local trong cache thay vì xoá sau khi upload.",
+    ),
+    auth: AuthContext = Depends(authenticate_token),
+):
+    return await infer_controller.mix(
+        main_vocal_file=mainVocal,
+        backup_vocal_file=backupVocal,
+        instrumental_file=instrumental,
+        reverb_room_size=reverbRoomSize,
+        reverb_wet=reverbWetLevel,
+        reverb_dry=reverbDryLevel,
+        reverb_damping=reverbDamping,
+        main_gain=mainGain,
+        backup_gain=backupGain,
+        inst_gain=instGain,
+        output_format=outputFormat,
+        keep_local=keepLocal,
+        auth=auth,
+    )
+

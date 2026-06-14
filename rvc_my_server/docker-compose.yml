@@ -3,7 +3,7 @@
 #   redis      — CPU, broker + pubsub
 #   api-light  — CPU, all routes EXCEPT /infer-services (port 8000)
 #   infer      — GPU, ONLY /infer-services (port 8001)
-#   worker     — GPU, Celery worker for training (no HTTP port)
+#   worker     — GPU, Celery worker for training + song infer jobs (no HTTP port)
 #
 # Mobile / client uses TWO base URLs:
 #   - http://localhost:8000  → api-light  (auth, user, train, rvc-model, admin)
@@ -130,6 +130,7 @@ services:
     deploy:
       <<: *rvc-gpu-deploy
     # --pool=solo is required on Windows hosts (prefork is unreliable in WSL2).
+    # It queues many jobs but runs one audio/GPU job at a time per worker process.
     # On Linux switch to --pool=prefork --concurrency=1 if desired.
     command: celery -A src.config.celery_app worker --loglevel=info --pool=solo
 

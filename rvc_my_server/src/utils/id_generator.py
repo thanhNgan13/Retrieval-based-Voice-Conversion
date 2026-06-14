@@ -18,6 +18,10 @@ def generate_train_job_id() -> str:
     return _generate_id("train")
 
 
+def generate_song_infer_job_id() -> str:
+    return _generate_id("song_infer")
+
+
 def generate_upload_session_id() -> str:
     return _generate_id("upload")
 

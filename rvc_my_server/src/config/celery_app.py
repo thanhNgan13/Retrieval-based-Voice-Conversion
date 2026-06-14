@@ -15,7 +15,7 @@ celery_app = Celery(
     "rvc_my_server",
     broker=_broker_url(),
     backend=_backend_url(),
-    include=["src.tasks.train_tasks"],
+    include=["src.tasks.train_tasks", "src.tasks.song_infer_tasks"],
 )
 
 celery_app.conf.update(
