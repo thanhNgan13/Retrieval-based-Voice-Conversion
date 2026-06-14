@@ -14,5 +14,6 @@ serviceAccount*.json
 .mypy_cache/
 .ruff_cache/
 cache/
+mdxnet_models/
 
 audio_separation_guide.ipynb
