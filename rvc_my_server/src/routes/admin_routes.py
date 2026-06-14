@@ -155,21 +155,3 @@ async def setup_training_assets(
     _: AuthContext = Depends(authenticate_token_admin),
 ):
     return await admin_controller.setup_training_assets(force=force)
-
-
-@router.get(
-    "/torch-status",
-    summary="Kiểm tra PyTorch + GPU CUDA đã sẵn sàng cho infer chưa",
-    description=(
-        "Trả về thông tin chi tiết:\n"
-        "- `nvidiaSmi`: driver + CUDA version từ `nvidia-smi` (null nếu máy không có NVIDIA).\n"
-        "- `torch.installed`, `torch.version`, `torch.cudaBuild`: PyTorch wheel đã cài.\n"
-        "- `torch.cudaAvailable`: PyTorch có nhận GPU không (quan trọng nhất).\n"
-        "- `torch.devices[]`: tên GPU, VRAM, compute capability.\n"
-        "- `torch.smokeTest`: thử alloc tensor + phép cộng trên CUDA (xác nhận thực sự chạy được).\n"
-        "- `engine`: trạng thái VC engine đã bootstrap chưa, đang dùng device gì.\n\n"
-        "Endpoint không tự khởi tạo VC engine — chỉ đọc trạng thái hiện tại."
-    ),
-)
-async def torch_status(_: AuthContext = Depends(authenticate_token_admin)):
-    return await admin_controller.torch_status()

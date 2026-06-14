@@ -9,6 +9,7 @@ from src.services.infer_service import (
     ModelNotFoundError,
     convert_voice,
 )
+from src.services.system_service import get_torch_status
 from src.utils.send_response import send_error_response, send_success_response
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,15 @@ class InferController:
             return send_error_response(500, "INFER_FAILED", str(exc))
         except Exception as exc:
             logger.exception("Error in private voice conversion")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+
+    async def torch_status(self):
+        try:
+            result = get_torch_status()
+            return send_success_response(200, "Torch status retrieved", result)
+        except Exception as exc:
+            logger.exception("Error in torch_status")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
 

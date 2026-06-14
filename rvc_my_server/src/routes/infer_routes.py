@@ -1,9 +1,27 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
 from src.controllers.infer_controller import infer_controller
 from src.middlewares.auth_middleware import AuthContext, authenticate_token
 
 router = APIRouter()
+
+
+@router.get(
+    "/torch-status",
+    summary="Kiểm tra PyTorch + GPU CUDA đã sẵn sàng cho infer chưa",
+    description=(
+        "Trả về thông tin chi tiết về môi trường runtime của container infer:\n"
+        "- `nvidiaSmi`: driver version + CUDA version từ `nvidia-smi` (`null` nếu không có GPU NVIDIA).\n"
+        "- `torch.installed`, `torch.version`, `torch.cudaBuild`: PyTorch đã cài và build CUDA tương ứng.\n"
+        "- `torch.cudaAvailable`: PyTorch có nhận được GPU không — **trường quan trọng nhất**.\n"
+        "- `torch.devices[]`: danh sách GPU kèm tên, VRAM, compute capability.\n"
+        "- `torch.smokeTest`: thử cấp phát tensor nhỏ + phép cộng trên CUDA để xác nhận GPU thực sự dùng được.\n"
+        "- `engine`: trạng thái VC engine — đã bootstrap chưa, đang dùng device gì, model nào đang load.\n\n"
+        "Endpoint chỉ **đọc** trạng thái, không tự khởi tạo engine hay tải model."
+    ),
+)
+async def torch_status(auth: AuthContext = Depends(authenticate_token)):
+    return await infer_controller.torch_status()
 
 
 @router.post(
