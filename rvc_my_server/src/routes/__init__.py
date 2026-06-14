@@ -50,7 +50,13 @@ def register_routes(app: FastAPI) -> None:
 
     if APP_ROLE in ("all", "infer"):
         from src.routes.infer_routes import router as infer_router
+        from src.routes.separation_routes import router as separation_router
 
         app.include_router(
             infer_router, prefix=f"{API_BASE_PATH}/infer-services", tags=["Infer"]
+        )
+        app.include_router(
+            separation_router,
+            prefix=f"{API_BASE_PATH}/separation-services",
+            tags=["Separation"],
         )

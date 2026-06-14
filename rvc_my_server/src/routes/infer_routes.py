@@ -1,77 +1,9 @@
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from src.controllers.infer_controller import infer_controller
 from src.middlewares.auth_middleware import AuthContext, authenticate_token
 
 router = APIRouter()
-
-
-@router.get(
-    "/separation-models",
-    summary="Liệt kê các UVR5 model đã cài để tách vocal/instrumental",
-    description=(
-        "Trả về danh sách model đang có trong `assets/uvr5_weights`. "
-        "Nếu rỗng hoặc thiếu `HP2_all_vocals`, gọi admin "
-        "`POST /admin-services/setup-uvr5-assets` trước."
-    ),
-)
-async def separation_models(auth: AuthContext = Depends(authenticate_token)):
-    return await infer_controller.separation_models()
-
-
-@router.post(
-    "/separate",
-    summary="Tách 1 bài hát thành vocal/giọng hát và instrumental/nhạc nền",
-    description=(
-        "Upload một file bài hát (`.wav`, `.mp3`, `.m4a`, `.flac`, ...). "
-        "Server dùng UVR5 để tách thành 2 stem audio:\n"
-        "- `outputs.vocal.url`: giọng hát/vocal\n"
-        "- `outputs.instrumental.url`: nhạc nền/instrumental\n\n"
-        "Mặc định dùng `HP2_all_vocals`, phù hợp cho tách toàn bộ vocal khỏi nhạc nền. "
-        "File kết quả được upload lên Firebase Storage và trả Firebase download URL."
-    ),
-)
-async def separate(
-    audio: UploadFile = File(
-        ...,
-        description="File bài hát cần tách vocal/instrumental.",
-    ),
-    modelName: str = Form(
-        default="HP2_all_vocals",
-        description=(
-            "Tên UVR5 model không kèm `.pth`. Mặc định `HP2_all_vocals`. "
-            "Xem danh sách model đã cài bằng `GET /infer-services/separation-models`."
-        ),
-        examples=["HP2_all_vocals"],
-    ),
-    agg: int = Form(
-        default=10,
-        ge=0,
-        le=20,
-        description=(
-            "Aggressiveness của UVR5 mask, 0-20. Cao hơn tách mạnh hơn nhưng dễ artifact. "
-            "`10` là default cân bằng."
-        ),
-    ),
-    outputFormat: str = Form(
-        default="wav",
-        description="Định dạng output: `wav`, `flac`, `mp3`, hoặc `m4a`. Default `wav`.",
-        examples=["wav"],
-    ),
-    keepLocal: bool = Query(
-        default=False,
-        description="Debug only: giữ workspace local trong cache thay vì xoá sau khi upload.",
-    ),
-    auth: AuthContext = Depends(authenticate_token),
-):
-    return await infer_controller.separate(
-        audio_file=audio,
-        model_name=modelName,
-        agg=agg,
-        output_format=outputFormat,
-        keep_local=keepLocal,
-        auth=auth,
-    )
 
 
 @router.post(

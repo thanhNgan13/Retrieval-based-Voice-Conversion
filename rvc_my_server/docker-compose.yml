@@ -34,6 +34,7 @@ x-rvc-env:
 x-rvc-volumes: &rvc-volumes
   - ./src/config/serviceAccount.json:/app/src/config/serviceAccount.json:ro
   - ./assets:/app/assets
+  - ./mdxnet_models:/app/mdxnet_models
   - ./cache:/app/cache
 
 x-rvc-gpu-deploy: &rvc-gpu-deploy

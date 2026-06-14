@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_HF = "https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/"
 _MIRROR_HF = "https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/"
+_MDXNET_BASE = "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/"
 
 
 def _base_url() -> str:
@@ -62,6 +63,24 @@ _UVR5_ASSETS = (
         "uvr5_weights/onnx_dereverb_By_FoxJoy/vocals.onnx",
         "uvr5_weights/onnx_dereverb_By_FoxJoy/vocals.onnx",
         "onnx_dereverb_By_FoxJoy/vocals.onnx",
+    ),
+)
+
+_MDXNET_ASSETS = (
+    (
+        "UVR-MDX-NET-Voc_FT.onnx",
+        "UVR-MDX-NET-Voc_FT.onnx",
+        "UVR-MDX-NET-Voc_FT",
+    ),
+    (
+        "UVR_MDXNET_KARA_2.onnx",
+        "UVR_MDXNET_KARA_2.onnx",
+        "UVR_MDXNET_KARA_2",
+    ),
+    (
+        "Reverb_HQ_By_FoxJoy.onnx",
+        "Reverb_HQ_By_FoxJoy.onnx",
+        "Reverb_HQ_By_FoxJoy",
     ),
 )
 
@@ -269,6 +288,77 @@ def get_uvr5_assets_status() -> dict:
 
     return {
         "assetsRoot": str(assets_root),
+        "assets": items,
+        "ready": all_ready,
+    }
+
+
+def _mdxnet_root() -> Path:
+    root = infer_engine.SERVER_ROOT / "mdxnet_models"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def setup_mdxnet_assets(force: bool = False) -> dict:
+    """Download the 3 ONNX MDX-Net models used by audio_separation_guide.ipynb."""
+    root = _mdxnet_root()
+
+    items = []
+    for rel_url, rel_dest, name in _MDXNET_ASSETS:
+        dest = root / rel_dest
+        if dest.is_file() and not force:
+            items.append({
+                "name": name,
+                "status": "already_present",
+                "path": str(dest),
+                "sizeBytes": dest.stat().st_size,
+            })
+            continue
+        try:
+            logger.info("Downloading MDX-Net asset %s -> %s", name, dest)
+            _download_file(_MDXNET_BASE + rel_url, dest)
+            items.append({
+                "name": name,
+                "status": "downloaded",
+                "path": str(dest),
+                "sizeBytes": dest.stat().st_size,
+            })
+        except Exception as exc:
+            logger.exception("Failed to download MDX-Net asset %s", name)
+            items.append({
+                "name": name,
+                "status": "failed",
+                "path": str(dest),
+                "error": str(exc),
+            })
+
+    return {
+        "baseUrl": _MDXNET_BASE,
+        "modelDir": str(root),
+        "assets": items,
+        "ready": all(i["status"] in ("downloaded", "already_present") for i in items),
+    }
+
+
+def get_mdxnet_assets_status() -> dict:
+    """Return presence status of the notebook MDX-Net ONNX assets."""
+    root = _mdxnet_root()
+
+    items = []
+    all_ready = True
+    for _, rel_dest, name in _MDXNET_ASSETS:
+        dest = root / rel_dest
+        present = dest.is_file()
+        all_ready = all_ready and present
+        items.append({
+            "name": name,
+            "present": present,
+            "path": str(dest),
+            "sizeBytes": dest.stat().st_size if present else 0,
+        })
+
+    return {
+        "modelDir": str(root),
         "assets": items,
         "ready": all_ready,
     }

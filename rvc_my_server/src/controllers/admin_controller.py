@@ -11,9 +11,11 @@ from src.services.admin_service import (
 )
 from src.services.asset_service import (
     get_assets_status,
+    get_mdxnet_assets_status,
     get_training_assets_status,
     get_uvr5_assets_status,
     setup_default_assets,
+    setup_mdxnet_assets,
     setup_training_assets,
     setup_uvr5_assets,
 )
@@ -100,6 +102,30 @@ class AdminController:
             return send_success_response(200, "UVR5 assets status retrieved", result)
         except Exception as exc:
             logger.exception("Error in admin get_uvr5_assets_status")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def setup_mdxnet_assets(self, force: bool):
+        try:
+            result = setup_mdxnet_assets(force=force)
+            message = (
+                "MDX-Net assets are ready"
+                if result["ready"]
+                else "Some MDX-Net assets failed to download"
+            )
+            status_code = 200 if result["ready"] else 500
+            if result["ready"]:
+                return send_success_response(status_code, message, result)
+            return send_error_response(status_code, "MDXNET_ASSET_SETUP_FAILED", message)
+        except Exception as exc:
+            logger.exception("Error in admin setup_mdxnet_assets")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def get_mdxnet_assets_status(self):
+        try:
+            result = get_mdxnet_assets_status()
+            return send_success_response(200, "MDX-Net assets status retrieved", result)
+        except Exception as exc:
+            logger.exception("Error in admin get_mdxnet_assets_status")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
     async def get_training_assets_status(self):

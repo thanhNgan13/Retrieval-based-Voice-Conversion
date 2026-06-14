@@ -84,8 +84,8 @@ async def assets_status(_: AuthContext = Depends(authenticate_token_admin)):
     summary="Tải các model UVR5 cần cho tách vocal/instrumental",
     description=(
         "Kiểm tra `assets/uvr5_weights/*`. File nào thiếu sẽ tải từ Hugging Face "
-        "(`lj1995/VoiceConversionWebUI`). Sau khi gọi thành công, API "
-        "`/infer-services/separate` có thể dùng `modelName=HP2_all_vocals` mặc định.\n\n"
+        "(`lj1995/VoiceConversionWebUI`). Endpoint này giữ cho UVR5 legacy assets; "
+        "API separation mới theo notebook dùng `/setup-mdxnet-assets`.\n\n"
         + _SETUP_ASSETS_TIMEOUT_NOTE
         + "\n\nĐặt env `RVC_HF_MIRROR=1` nếu mạng truy cập huggingface.co không ổn định "
         "(sẽ dùng `hf-mirror.com`)."
@@ -111,6 +111,40 @@ async def setup_uvr5_assets(
 )
 async def uvr5_assets_status(_: AuthContext = Depends(authenticate_token_admin)):
     return await admin_controller.get_uvr5_assets_status()
+
+
+@router.post(
+    "/setup-mdxnet-assets",
+    summary="Tai 3 model MDX-Net ONNX dung cho separation notebook",
+    description=(
+        "Kiem tra thu muc `mdxnet_models`. File nao thieu se tai tu GitHub release "
+        "`TRvlvr/model_repo/all_public_uvr_models`, dung nhu "
+        "`audio_separation_guide.ipynb`: "
+        "`UVR-MDX-NET-Voc_FT.onnx`, `UVR_MDXNET_KARA_2.onnx`, "
+        "`Reverb_HQ_By_FoxJoy.onnx`.\n\n"
+        + _SETUP_ASSETS_TIMEOUT_NOTE
+    ),
+)
+async def setup_mdxnet_assets(
+    force: bool = Query(
+        default=False,
+        description=(
+            "`true` = tai lai ke ca file da ton tai. "
+            "`false` = bo qua file da co."
+        ),
+    ),
+    _: AuthContext = Depends(authenticate_token_admin),
+):
+    return await admin_controller.setup_mdxnet_assets(force=force)
+
+
+@router.get(
+    "/mdxnet-assets-status",
+    summary="Kiem tra trang thai asset MDX-Net ONNX cua separation notebook",
+    description="Tra ve `present`/`absent` cho 3 model ONNX trong `mdxnet_models`.",
+)
+async def mdxnet_assets_status(_: AuthContext = Depends(authenticate_token_admin)):
+    return await admin_controller.get_mdxnet_assets_status()
 
 
 @router.get(
