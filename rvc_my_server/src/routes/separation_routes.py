@@ -8,12 +8,12 @@ router = APIRouter()
 
 @router.get(
     "/models",
-    summary="Kiem tra 3 model MDX-Net ONNX dung cho pipeline separation",
+    summary="Kiểm tra 3 model MDX-Net ONNX dùng cho pipeline tách âm thanh",
     description=(
-        "Tra ve trang thai cua 3 model dung dung theo notebook "
-        "`audio_separation_guide.ipynb`: "
+        "Trả về trạng thái của 3 model trong thư mục `mdxnet_models`: "
         "`UVR-MDX-NET-Voc_FT.onnx`, `UVR_MDXNET_KARA_2.onnx`, "
-        "`Reverb_HQ_By_FoxJoy.onnx`."
+        "`Reverb_HQ_By_FoxJoy.onnx`. "
+        "Nếu thiếu model, gọi admin `/setup-mdxnet-assets` để tải về trước."
     ),
 )
 async def models(auth: AuthContext = Depends(authenticate_token)):
@@ -22,24 +22,23 @@ async def models(auth: AuthContext = Depends(authenticate_token)):
 
 @router.post(
     "/separate",
-    summary="Tach bai hat bang pipeline MDX-Net 3 giai doan trong notebook",
+    summary="Tách bài hát bằng pipeline MDX-Net 3 giai đoạn",
     description=(
-        "Upload mot file bai hat. Server chay dung pipeline trong "
-        "`audio_separation_guide.ipynb`:\n"
-        "1. `UVR-MDX-NET-Voc_FT.onnx`: tach `instrumental` va vocal tam.\n"
-        "2. `UVR_MDXNET_KARA_2.onnx`: tach `backupVocals` va main vocal tam.\n"
-        "3. `Reverb_HQ_By_FoxJoy.onnx`: tao `mainVocalsDereverb`.\n\n"
-        "Tat ca output la WAV va duoc upload len Firebase Storage."
+        "Upload một file bài hát. Server chạy pipeline tách âm 3 giai đoạn:\n"
+        "1. `UVR-MDX-NET-Voc_FT.onnx`: tách `instrumental` và giọng hát tạm.\n"
+        "2. `UVR_MDXNET_KARA_2.onnx`: tách `backupVocals` và giọng chính tạm.\n"
+        "3. `Reverb_HQ_By_FoxJoy.onnx`: khử reverb, tạo `mainVocalsDereverb`.\n\n"
+        "Tất cả output là WAV và được upload lên Firebase Storage."
     ),
 )
 async def separate(
     audio: UploadFile = File(
         ...,
-        description="File bai hat can tach nguon am thanh.",
+        description="File bài hát cần tách nguồn âm thanh.",
     ),
     keepLocal: bool = Query(
         default=False,
-        description="Debug only: giu workspace local trong cache thay vi xoa sau khi upload.",
+        description="Chỉ dùng để debug: giữ lại workspace local trong cache thay vì xoá sau khi upload.",
     ),
     auth: AuthContext = Depends(authenticate_token),
 ):

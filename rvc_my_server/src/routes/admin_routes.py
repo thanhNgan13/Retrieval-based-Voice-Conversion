@@ -81,13 +81,12 @@ async def assets_status(_: AuthContext = Depends(authenticate_token_admin)):
 
 @router.post(
     "/setup-mdxnet-assets",
-    summary="Tai 3 model MDX-Net ONNX dung cho separation notebook",
+    summary="Tải 3 model MDX-Net ONNX dùng cho tách âm thanh",
     description=(
-        "Kiem tra thu muc `mdxnet_models`. File nao thieu se tai tu GitHub release "
-        "`TRvlvr/model_repo/all_public_uvr_models`, dung nhu "
-        "`audio_separation_guide.ipynb`: "
-        "`UVR-MDX-NET-Voc_FT.onnx`, `UVR_MDXNET_KARA_2.onnx`, "
-        "`Reverb_HQ_By_FoxJoy.onnx`.\n\n"
+        "Kiểm tra thư mục `mdxnet_models`. File nào thiếu sẽ tải từ GitHub release "
+        "`TRvlvr/model_repo/all_public_uvr_models`, gồm 3 model dùng trong pipeline tách âm 3 giai đoạn: "
+        "`UVR-MDX-NET-Voc_FT.onnx` (tách giọng/nhạc nền), `UVR_MDXNET_KARA_2.onnx` (tách giọng chính/bè), "
+        "`Reverb_HQ_By_FoxJoy.onnx` (khử reverb).\n\n"
         + _SETUP_ASSETS_TIMEOUT_NOTE
     ),
 )
@@ -95,8 +94,8 @@ async def setup_mdxnet_assets(
     force: bool = Query(
         default=False,
         description=(
-            "`true` = tai lai ke ca file da ton tai. "
-            "`false` = bo qua file da co."
+            "`true` = tải lại kể cả file đã tồn tại. "
+            "`false` *(mặc định)* = bỏ qua file đã có."
         ),
     ),
     _: AuthContext = Depends(authenticate_token_admin),
@@ -106,8 +105,8 @@ async def setup_mdxnet_assets(
 
 @router.get(
     "/mdxnet-assets-status",
-    summary="Kiem tra trang thai asset MDX-Net ONNX cua separation notebook",
-    description="Tra ve `present`/`absent` cho 3 model ONNX trong `mdxnet_models`.",
+    summary="Kiểm tra trạng thái asset MDX-Net ONNX (không tải)",
+    description="Trả về `present`/`absent` cho 3 model ONNX trong thư mục `mdxnet_models`.",
 )
 async def mdxnet_assets_status(_: AuthContext = Depends(authenticate_token_admin)):
     return await admin_controller.get_mdxnet_assets_status()
