@@ -1,0 +1,22 @@
+# Development override — automatically merged by `docker compose up`.
+# Do NOT commit this file if your team has different local setups.
+#
+# Effects:
+#   - Mounts local source code into containers (no rebuild needed when editing .py files)
+#   - Enables uvicorn --reload for api-light and infer (auto-restart on file change)
+#   - worker still needs `docker compose restart worker` after code changes
+
+services:
+  api-light:
+    volumes:
+      - .:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  infer:
+    volumes:
+      - .:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    volumes:
+      - .:/app
