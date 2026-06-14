@@ -13,11 +13,9 @@ from src.services.asset_service import (
     get_assets_status,
     get_mdxnet_assets_status,
     get_training_assets_status,
-    get_uvr5_assets_status,
     setup_default_assets,
     setup_mdxnet_assets,
     setup_training_assets,
-    setup_uvr5_assets,
 )
 from src.services.system_service import get_torch_status
 from src.utils.send_response import send_error_response, send_success_response
@@ -78,30 +76,6 @@ class AdminController:
             return send_success_response(200, "Assets status retrieved", result)
         except Exception as exc:
             logger.exception("Error in admin get_assets_status")
-            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
-
-    async def setup_uvr5_assets(self, force: bool):
-        try:
-            result = setup_uvr5_assets(force=force)
-            message = (
-                "UVR5 assets are ready"
-                if result["ready"]
-                else "Some UVR5 assets failed to download"
-            )
-            status_code = 200 if result["ready"] else 500
-            if result["ready"]:
-                return send_success_response(status_code, message, result)
-            return send_error_response(status_code, "UVR5_ASSET_SETUP_FAILED", message)
-        except Exception as exc:
-            logger.exception("Error in admin setup_uvr5_assets")
-            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
-
-    async def get_uvr5_assets_status(self):
-        try:
-            result = get_uvr5_assets_status()
-            return send_success_response(200, "UVR5 assets status retrieved", result)
-        except Exception as exc:
-            logger.exception("Error in admin get_uvr5_assets_status")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
     async def setup_mdxnet_assets(self, force: bool):

@@ -80,40 +80,6 @@ async def assets_status(_: AuthContext = Depends(authenticate_token_admin)):
 
 
 @router.post(
-    "/setup-uvr5-assets",
-    summary="Tải các model UVR5 cần cho tách vocal/instrumental",
-    description=(
-        "Kiểm tra `assets/uvr5_weights/*`. File nào thiếu sẽ tải từ Hugging Face "
-        "(`lj1995/VoiceConversionWebUI`). Endpoint này giữ cho UVR5 legacy assets; "
-        "API separation mới theo notebook dùng `/setup-mdxnet-assets`.\n\n"
-        + _SETUP_ASSETS_TIMEOUT_NOTE
-        + "\n\nĐặt env `RVC_HF_MIRROR=1` nếu mạng truy cập huggingface.co không ổn định "
-        "(sẽ dùng `hf-mirror.com`)."
-    ),
-)
-async def setup_uvr5_assets(
-    force: bool = Query(
-        default=False,
-        description=(
-            "`true` = tải lại kể cả file đã tồn tại. "
-            "`false` *(mặc định)* = bỏ qua file đã có."
-        ),
-    ),
-    _: AuthContext = Depends(authenticate_token_admin),
-):
-    return await admin_controller.setup_uvr5_assets(force=force)
-
-
-@router.get(
-    "/uvr5-assets-status",
-    summary="Kiểm tra trạng thái asset UVR5 (không tải)",
-    description="Trả về `present`/`absent` cho các weight UVR5 dùng để tách vocal/instrumental.",
-)
-async def uvr5_assets_status(_: AuthContext = Depends(authenticate_token_admin)):
-    return await admin_controller.get_uvr5_assets_status()
-
-
-@router.post(
     "/setup-mdxnet-assets",
     summary="Tai 3 model MDX-Net ONNX dung cho separation notebook",
     description=(
