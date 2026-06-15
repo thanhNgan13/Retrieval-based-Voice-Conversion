@@ -19,6 +19,7 @@ from src.services.song_infer_progress import song_infer_channel
 from src.services.song_infer_service import (
     create_song_infer_job,
     get_song_infer_job_detail,
+    list_completed_covers,
     list_song_infer_jobs,
 )
 from src.utils.send_response import send_error_response, send_success_response
@@ -156,6 +157,16 @@ async def create_song_job(
         return send_error_response(400, "VALIDATION_FAILED", str(exc))
     except Exception as exc:
         return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+
+@router.get("/covers", summary="List current user's completed song covers")
+async def list_covers(
+    limit: Optional[int] = Query(default=10, ge=1, le=100),
+    startAfter: Optional[str] = Query(default=None),
+    auth: AuthContext = Depends(authenticate_token),
+):
+    result = list_completed_covers(auth.user_id, limit, startAfter)
+    return send_success_response(200, "Completed covers retrieved", result)
 
 
 @router.get("/jobs", summary="List current user's song inference jobs")

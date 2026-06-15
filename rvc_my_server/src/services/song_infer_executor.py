@@ -25,6 +25,7 @@ from src.services.separation_service import (
     _onnx_providers,
     _run_mdx_standalone,
 )
+from src.services.list_cover_service import save_completed_cover
 from src.services.song_infer_errors import SongInferJobNotFoundError, SongInferRuntimeError
 from src.services.song_infer_progress import publish_song_infer_progress
 from src.utils.constant import SONG_INFER_OUTPUT_FOLDER
@@ -407,6 +408,15 @@ def execute_song_infer_job(song_infer_job_id: str) -> None:
         }
 
         completed_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        publish_song_infer_progress(
+            song_infer_job_id,
+            "running",
+            "save_cover",
+            98,
+            "Saving completed cover metadata",
+            outputs=outputs,
+        )
+        save_completed_cover(job_doc, outputs, completed_at)
         publish_song_infer_progress(
             song_infer_job_id,
             "succeeded",

@@ -22,6 +22,7 @@ from src.services.song_infer_errors import (
     InvalidSongInferRequestError,
     SongInferJobNotFoundError,
 )
+from src.services.list_cover_service import list_covers
 from src.utils.constant import SONG_INFER_INPUT_FOLDER
 from src.utils.cursor_pagination import normalize_limit
 from src.utils.data_transform import convert_firestore_doc
@@ -150,3 +151,7 @@ def list_song_infer_jobs(user_id: str, limit: Optional[int], start_after: Option
             "currentCount": len(views),
         },
     }
+
+
+def list_completed_covers(user_id: str, limit: Optional[int], start_after: Optional[str]) -> dict:
+    return list_covers(user_id, limit, start_after)

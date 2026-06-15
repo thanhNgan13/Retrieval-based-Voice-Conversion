@@ -8,6 +8,7 @@ USERS_COLLECTION = "users"
 RVC_MODELS_COLLECTION = "rvc_models"
 RVC_TRAIN_JOBS_COLLECTION = "rvc_train_jobs"
 RVC_SONG_INFER_JOBS_COLLECTION = "rvc_song_infer_jobs"
+LIST_COVER_COLLECTION = "list_cover"
 RVC_AUDIO_UPLOADS_COLLECTION = "rvc_audio_uploads"
 USER_RVC_MODELS_SUBCOLLECTION = "rvc_models"
 
