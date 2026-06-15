@@ -44,6 +44,11 @@ def prepare_cover_data(
     }
 
 
+def cover_exists(cover_id: str) -> bool:
+    db = get_db()
+    return db.collection(LIST_COVER_COLLECTION).document(cover_id).get().exists
+
+
 def add_cover_to_firestore(data: dict) -> None:
     db = get_db()
     db.collection(LIST_COVER_COLLECTION).document(data["cover_id"]).set(data)

@@ -130,6 +130,19 @@ async def training_assets_status(_: AuthContext = Depends(authenticate_token_adm
 
 
 @router.post(
+    "/backfill-covers",
+    summary="Backfill list_cover từ các song inference job đã succeeded",
+    description=(
+        "Quét toàn bộ job có `status=succeeded`, tạo entry trong collection `list_cover` "
+        "cho những job chưa có cover. Dùng khi deploy tính năng cover management sau khi "
+        "các job đã chạy xong (Celery worker cũ chưa có `save_completed_cover`)."
+    ),
+)
+async def backfill_covers(_: AuthContext = Depends(authenticate_token_admin)):
+    return await admin_controller.backfill_covers()
+
+
+@router.post(
     "/setup-training-assets",
     summary="Cài/tải các asset cần cho training RVC",
     description=(

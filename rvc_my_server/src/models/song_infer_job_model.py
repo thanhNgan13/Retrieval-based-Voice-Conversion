@@ -62,6 +62,12 @@ def update_song_infer_job_in_firestore(song_infer_job_id: str, updates: dict) ->
     return ref.get().to_dict()
 
 
+def list_all_succeeded_song_infer_jobs() -> list:
+    db = get_db()
+    docs = db.collection(RVC_SONG_INFER_JOBS_COLLECTION).where("status", "==", "succeeded").stream()
+    return [d.to_dict() for d in docs]
+
+
 def list_user_song_infer_jobs_paginated(
     user_id: str,
     limit: int,

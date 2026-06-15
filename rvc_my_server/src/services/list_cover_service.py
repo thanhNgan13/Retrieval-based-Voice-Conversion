@@ -2,9 +2,11 @@ from typing import Optional
 
 from src.models.list_cover_model import (
     add_cover_to_firestore,
+    cover_exists,
     list_user_covers_paginated,
     prepare_cover_data,
 )
+from src.models.song_infer_job_model import list_all_succeeded_song_infer_jobs
 from src.models.user_rvc_model_model import get_accessible_rvc_model_by_id
 from src.utils.cursor_pagination import normalize_limit
 from src.utils.data_transform import convert_firestore_doc
@@ -35,6 +37,32 @@ def save_completed_cover(job_doc: dict, outputs: dict, completed_at: str) -> dic
     )
     add_cover_to_firestore(doc)
     return _public_cover_view(doc)
+
+
+def backfill_covers_from_succeeded_jobs() -> dict:
+    jobs = list_all_succeeded_song_infer_jobs()
+    created = 0
+    skipped = 0
+    failed = 0
+    for job_doc in jobs:
+        cover_id = job_doc.get("song_infer_job_id", "")
+        if not cover_id:
+            skipped += 1
+            continue
+        if cover_exists(cover_id):
+            skipped += 1
+            continue
+        outputs = job_doc.get("outputs") or {}
+        if not outputs.get("mixing", {}).get("finalMix"):
+            skipped += 1
+            continue
+        try:
+            completed_at = job_doc.get("completed_at", "")
+            save_completed_cover(job_doc, outputs, completed_at)
+            created += 1
+        except Exception:
+            failed += 1
+    return {"created": created, "skipped": skipped, "failed": failed, "total": len(jobs)}
 
 
 def list_covers(user_id: str, limit: Optional[int], start_after: Optional[str]) -> dict:

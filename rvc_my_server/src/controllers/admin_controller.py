@@ -9,6 +9,7 @@ from src.services.admin_service import (
     admin_refresh_access_token,
     list_all_users,
 )
+from src.services.list_cover_service import backfill_covers_from_succeeded_jobs
 from src.services.asset_service import (
     get_assets_status,
     get_mdxnet_assets_status,
@@ -143,5 +144,14 @@ class AdminController:
         except Exception as exc:
             logger.exception("Error in admin setup_training_assets")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def backfill_covers(self):
+        try:
+            result = backfill_covers_from_succeeded_jobs()
+            return send_success_response(200, "Cover backfill completed", result)
+        except Exception as exc:
+            logger.exception("Error in admin backfill_covers")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
 
 admin_controller = AdminController()
