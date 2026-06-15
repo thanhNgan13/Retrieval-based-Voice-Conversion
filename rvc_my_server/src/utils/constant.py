@@ -12,6 +12,8 @@ LIST_COVER_COLLECTION = "list_cover"
 RVC_AUDIO_UPLOADS_COLLECTION = "rvc_audio_uploads"
 USER_RVC_MODELS_SUBCOLLECTION = "rvc_models"
 RECENT_SONGS_SUBCOLLECTION = "recent_songs"
+PLAYLISTS_COLLECTION = "playlists"
+SONGS_SUBCOLLECTION = "songs"
 
 PUBLIC_RVC_MODEL_FOLDER = "public_rvc_model"
 PRIVATE_RVC_MODEL_FOLDER = "user_rvc_model"
