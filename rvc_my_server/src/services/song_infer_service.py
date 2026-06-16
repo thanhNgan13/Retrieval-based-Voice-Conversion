@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import UploadFile
 
-from src.config.firebase import get_bucket
+from src.config.firebase import get_bucket, get_db
 from src.models.song_infer_job_model import (
     add_song_infer_job_to_firestore,
     get_song_infer_job_by_id,
@@ -122,6 +122,7 @@ def create_song_infer_job(
         input_file_name=song_file.filename or "song.wav",
         rvc_model_id=rvc_model_id,
         params=params,
+        song_info=None,
     )
     add_song_infer_job_to_firestore(doc)
     # Scheduler picks this up on its next tick (or immediately via Redis trigger).
@@ -153,3 +154,117 @@ def list_song_infer_jobs(user_id: str, limit: Optional[int], start_after: Option
 
 def list_completed_covers(user_id: str, limit: Optional[int], start_after: Optional[str]) -> dict:
     return list_covers(user_id, limit, start_after)
+
+
+# ---------------------------------------------------------------------------
+# Helpers for song-ID-based infer
+# ---------------------------------------------------------------------------
+
+def _get_song_by_id(song_id: str) -> Optional[dict]:
+    """Query Firestore collectionGroup('songs') to find a song by its id field."""
+    db = get_db()
+    snaps = (
+        db.collection_group("songs")
+        .where(filter=("id", "==", song_id))
+        .limit(1)
+        .get()
+    )
+    if not snaps:
+        return None
+    return snaps[0].to_dict()
+
+
+def _build_params_from_schema(body) -> dict:
+    """Convert CreateSongInferFromSongIdsRequest fields into the internal params dict."""
+    return {
+        "separation": {
+            "denoise": body.separationDenoise,
+            "keepLocal": body.separationKeepLocal,
+            "pipeline": "MDX-Net 3-stage notebook pipeline",
+            "sampleRate": 44100,
+            "models": {
+                "vocal": "UVR-MDX-NET-Voc_FT.onnx",
+                "karaoke": "UVR_MDXNET_KARA_2.onnx",
+                "dereverb": "Reverb_HQ_By_FoxJoy.onnx",
+            },
+        },
+        "infer": {
+            "privateOnly": body.privateOnly,
+            "speakerId": body.speakerId,
+            "f0UpKey": body.f0UpKey,
+            "f0Method": body.f0Method,
+            "indexRate": body.indexRate,
+            "filterRadius": body.filterRadius,
+            "resampleSr": body.resampleSr,
+            "rmsMixRate": body.rmsMixRate,
+            "protect": body.protect,
+        },
+        "mixing": {
+            "keepLocal": body.mixingKeepLocal,
+            "reverbRoomSize": body.reverbRoomSize,
+            "reverbWetLevel": body.reverbWetLevel,
+            "reverbDryLevel": body.reverbDryLevel,
+            "reverbDamping": body.reverbDamping,
+            "mainGain": body.mainGain,
+            "backupGain": body.backupGain,
+            "instGain": body.instGain,
+            "outputFormat": body.outputFormat,
+            "notebookBaseMainDb": -4,
+            "notebookBaseBackupDb": -6,
+            "notebookBaseInstrumentalDb": -7,
+            "effects": {
+                "highpassFilter": {"enabled": True},
+                "compressor": {"ratio": 4, "thresholdDb": -15},
+            },
+        },
+    }
+
+
+def create_song_infer_job_from_song_id(body, user_id: str) -> dict:
+    """Create one infer job from a Firestore song ID. Input audio is fetched from audioUrl."""
+    _validate_params(_build_params_from_schema(body))
+
+    rvc_model_id = body.rvcModelId
+    private_only = body.privateOnly
+    if private_only:
+        model_doc = get_user_rvc_model_by_id(user_id, rvc_model_id)
+    else:
+        model_doc = get_accessible_rvc_model_by_id(user_id, rvc_model_id)
+    if not model_doc:
+        raise InvalidSongInferRequestError("RVC model '%s' not found" % rvc_model_id)
+
+    song_doc = _get_song_by_id(body.songId)
+    if not song_doc:
+        raise InvalidSongInferRequestError("Song '%s' not found" % body.songId)
+
+    audio_url = song_doc.get("audioUrl") or ""
+    if not audio_url:
+        raise InvalidSongInferRequestError("Song '%s' has no audioUrl" % body.songId)
+
+    title = song_doc.get("title") or body.songId
+    safe_title = re.sub(r"[^a-zA-Z0-9._-]+", "_", title).strip("._-") or "song"
+    input_file_name = "%s.mp3" % safe_title[:80]
+
+    song_infer_job_id = generate_song_infer_job_id()
+    doc = prepare_song_infer_job_data(
+        song_infer_job_id=song_infer_job_id,
+        user_id=user_id,
+        input_object_path="",
+        input_file_name=input_file_name,
+        rvc_model_id=rvc_model_id,
+        params=_build_params_from_schema(body),
+        input_url=audio_url,
+        source_song_id=body.songId,
+        song_info={
+            "id": song_doc.get("id", ""),
+            "title": song_doc.get("title", ""),
+            "artists": song_doc.get("artists", []),
+            "duration": song_doc.get("duration", ""),
+            "coverImage": song_doc.get("coverImage", ""),
+            "audioUrl": song_doc.get("audioUrl", ""),
+            "playlistId": song_doc.get("playlistId", ""),
+            "uploader": song_doc.get("uploader", ""),
+        },
+    )
+    add_song_infer_job_to_firestore(doc)
+    return _public_job_view(doc)

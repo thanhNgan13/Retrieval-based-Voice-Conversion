@@ -18,13 +18,21 @@ def prepare_song_infer_job_data(
     input_file_name: str,
     rvc_model_id: str,
     params: dict,
+    input_url: str = "",
+    source_song_id: str = "",
+    song_info: Optional[dict] = None,
 ) -> dict:
     now = _now_iso()
     return {
         "song_infer_job_id": song_infer_job_id,
         "user_id": user_id,
+        # Exactly one of input_object_path / input_url is non-empty.
         "input_object_path": input_object_path,
+        "input_url": input_url,
         "input_file_name": input_file_name,
+        "source_song_id": source_song_id,
+        # Full song metadata when job was created from a Firestore song; None for file uploads.
+        "song_info": song_info,
         "rvc_model_id": rvc_model_id,
         "params": params,
         "status": "queued",

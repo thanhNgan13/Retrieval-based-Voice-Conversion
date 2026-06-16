@@ -16,8 +16,10 @@ from src.services.song_infer_errors import (
     SongInferJobNotFoundError,
 )
 from src.services.song_infer_progress import song_infer_channel
+from src.schemas.song_infer_schema import CreateSongInferFromSongIdRequest
 from src.services.song_infer_service import (
     create_song_infer_job,
+    create_song_infer_job_from_song_id,
     get_song_infer_job_detail,
     list_completed_covers,
     list_song_infer_jobs,
@@ -152,6 +154,29 @@ async def create_song_job(
     }
     try:
         result = create_song_infer_job(song, rvcModelId, auth.user_id, params)
+        return send_success_response(201, "Song inference job queued", result)
+    except InvalidSongInferRequestError as exc:
+        return send_error_response(400, "VALIDATION_FAILED", str(exc))
+    except Exception as exc:
+        return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+
+@router.post(
+    "/jobs/from-song-id",
+    summary="Queue infer job từ song ID có sẵn trong Firestore",
+    description=(
+        "Giống `/jobs` nhưng thay vì upload file, truyền `songId` — ID bài hát "
+        "đã có trong Firestore (collectionGroup `songs`). Server tự lấy `audioUrl` rồi "
+        "download về để xử lý pipeline bình thường. "
+        "Tất cả infer/mixing params giống hệt endpoint upload file."
+    ),
+)
+async def create_song_job_from_song_id(
+    body: CreateSongInferFromSongIdRequest,
+    auth: AuthContext = Depends(authenticate_token),
+):
+    try:
+        result = create_song_infer_job_from_song_id(body, auth.user_id)
         return send_success_response(201, "Song inference job queued", result)
     except InvalidSongInferRequestError as exc:
         return send_error_response(400, "VALIDATION_FAILED", str(exc))

@@ -42,9 +42,26 @@ def _job_root(song_infer_job_id: str) -> Path:
 def _download_input(job_doc: dict, job_root: Path) -> Path:
     input_dir = job_root / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
-    ext = Path(job_doc["input_object_path"]).suffix.lower() or ".wav"
-    local_path = input_dir / ("source_song%s" % ext)
-    get_bucket().blob(job_doc["input_object_path"]).download_to_filename(str(local_path))
+
+    if job_doc.get("input_url"):
+        # Song came from a Firestore song document — download directly from URL.
+        import urllib.parse
+        import requests as _requests
+        url = job_doc["input_url"]
+        raw_path = urllib.parse.urlparse(url).path
+        ext = Path(raw_path).suffix.lower() or ".mp3"
+        local_path = input_dir / ("source_song%s" % ext)
+        resp = _requests.get(url, stream=True, timeout=120)
+        resp.raise_for_status()
+        with open(local_path, "wb") as fh:
+            for chunk in resp.iter_content(chunk_size=65536):
+                fh.write(chunk)
+    else:
+        # Song was uploaded by the user — download from Firebase Storage.
+        ext = Path(job_doc["input_object_path"]).suffix.lower() or ".wav"
+        local_path = input_dir / ("source_song%s" % ext)
+        get_bucket().blob(job_doc["input_object_path"]).download_to_filename(str(local_path))
+
     return local_path
 
 
