@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
 from src.controllers.rvc_model_controller import rvc_model_controller
 from src.middlewares.auth_middleware import AuthContext, authenticate_token_admin
-from src.schemas.rvc_model_schema import UpdateRvcModelRequest
+from src.schemas.rvc_model_schema import DeleteRvcModelsRequest, UpdateRvcModelRequest
 
 router = APIRouter()
 
@@ -45,6 +45,22 @@ async def list_models(
     startAfter: Optional[str] = Query(default=None, description="rvcModelId làm cursor trang kế."),
 ):
     return await rvc_model_controller.list(limit=limit, start_after=startAfter)
+
+
+@router.post(
+    "/delete-batch",
+    summary="Delete multiple RVC models by IDs",
+    description=(
+        "Xoá nhiều public RVC model theo danh sách `rvcModelIds`. "
+        "Mỗi model được xoá cả Firestore doc lẫn toàn bộ blob Storage. "
+        "ID không tồn tại sẽ được liệt kê trong `notFoundIds` thay vì trả lỗi."
+    ),
+)
+async def delete_many(
+    body: DeleteRvcModelsRequest,
+    auth: AuthContext = Depends(authenticate_token_admin),
+):
+    return await rvc_model_controller.delete_many(body, auth)
 
 
 @router.delete(

@@ -7,6 +7,7 @@ from src.config.firebase import get_db
 from src.utils.constant import RVC_MODELS_COLLECTION
 
 
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -92,6 +93,40 @@ def list_rvc_models_paginated(
     docs = [d.to_dict() for d in query.stream()]
     has_next = len(docs) > limit
     return docs[:limit], has_next
+
+
+def delete_rvc_models_by_ids_from_firestore(
+    rvc_model_ids: list[str],
+) -> Tuple[list, list]:
+    """Batch-delete docs by IDs. Returns (deleted_docs, not_found_ids)."""
+    db = get_db()
+    col = db.collection(RVC_MODELS_COLLECTION)
+
+    deleted_docs: list = []
+    not_found_ids: list = []
+    to_delete_refs: list = []
+
+    for mid in rvc_model_ids:
+        snap = col.document(mid).get()
+        if snap.exists:
+            deleted_docs.append(snap.to_dict())
+            to_delete_refs.append(snap.reference)
+        else:
+            not_found_ids.append(mid)
+
+    batch = db.batch()
+    i = 0
+    for ref in to_delete_refs:
+        batch.delete(ref)
+        i += 1
+        if i >= 500:
+            batch.commit()
+            batch = db.batch()
+            i = 0
+    if i > 0:
+        batch.commit()
+
+    return deleted_docs, not_found_ids
 
 
 def delete_all_rvc_models_from_firestore() -> Tuple[int, list]:

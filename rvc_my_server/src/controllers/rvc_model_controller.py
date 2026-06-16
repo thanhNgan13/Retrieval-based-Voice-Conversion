@@ -4,12 +4,13 @@ from typing import Optional
 from fastapi import UploadFile
 
 from src.middlewares.auth_middleware import AuthContext
-from src.schemas.rvc_model_schema import UpdateRvcModelRequest
+from src.schemas.rvc_model_schema import DeleteRvcModelsRequest, UpdateRvcModelRequest
 from src.services.rvc_model_service import (
     InvalidUploadError,
     RvcModelNotFoundError,
     delete_all_rvc_models,
     delete_rvc_model,
+    delete_rvc_models_by_ids,
     get_rvc_model_detail,
     list_rvc_models,
     update_rvc_model,
@@ -93,6 +94,14 @@ class RvcModelController:
             return send_error_response(404, "NOT_FOUND", str(exc))
         except Exception as exc:
             logger.exception("Error in delete rvc model")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def delete_many(self, body: DeleteRvcModelsRequest, auth: AuthContext):
+        try:
+            result = delete_rvc_models_by_ids(body.rvc_model_ids)
+            return send_success_response(200, "RVC models deleted successfully", result)
+        except Exception as exc:
+            logger.exception("Error in delete rvc models by ids")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
     async def delete_all(self, auth: AuthContext):

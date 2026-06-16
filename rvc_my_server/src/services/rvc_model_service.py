@@ -11,6 +11,7 @@ from src.models.rvc_model_model import (
     add_rvc_model_to_firestore,
     delete_all_rvc_models_from_firestore,
     delete_rvc_model_from_firestore,
+    delete_rvc_models_by_ids_from_firestore,
     get_rvc_model_by_id,
     list_rvc_models_paginated,
     prepare_rvc_model_data,
@@ -194,6 +195,17 @@ def update_rvc_model(
     if updated is None:
         raise RvcModelNotFoundError("RVC model not found")
     return _public_view(updated)
+
+
+def delete_rvc_models_by_ids(rvc_model_ids: list[str]) -> dict:
+    deleted_docs, not_found_ids = delete_rvc_models_by_ids_from_firestore(rvc_model_ids)
+    for doc in deleted_docs:
+        _delete_storage_folder(doc.get("storage_folder", ""))
+    return {
+        "deletedCount": len(deleted_docs),
+        "deletedIds": [d["rvc_model_id"] for d in deleted_docs],
+        "notFoundIds": not_found_ids,
+    }
 
 
 def delete_rvc_model(rvc_model_id: str) -> None:
