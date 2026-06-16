@@ -1,7 +1,7 @@
 import asyncio
 import json
 import time
-from typing import Optional
+from typing import Literal, Optional
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
@@ -101,9 +101,21 @@ async def create_job(
 async def list_jobs(
     limit: Optional[int] = Query(default=10, ge=1, le=100),
     startAfter: Optional[str] = Query(default=None),
+    status: Optional[Literal["queued", "running", "succeeded", "failed", "active"]] = Query(
+        default=None,
+        description=(
+            "Lọc job theo trạng thái. "
+            "`succeeded` = đã hoàn thành; "
+            "`active` = đang tiến hành (queued + running); "
+            "`queued` = đang chờ trong hàng; "
+            "`running` = đang chạy; "
+            "`failed` = thất bại. "
+            "Bỏ trống = trả tất cả."
+        ),
+    ),
     auth: AuthContext = Depends(authenticate_token),
 ):
-    return await train_controller.list_jobs(limit, startAfter, auth)
+    return await train_controller.list_jobs(limit, startAfter, status, auth)
 
 
 @router.get("/jobs/{train_job_id}", summary="Get training job detail")

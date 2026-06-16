@@ -67,13 +67,17 @@ def list_user_train_jobs_paginated(
     user_id: str,
     limit: int,
     start_after: Optional[str],
+    status: Optional[str] = None,
 ) -> Tuple[list, bool]:
     db = get_db()
-    query = (
-        db.collection(RVC_TRAIN_JOBS_COLLECTION)
-        .where("user_id", "==", user_id)
-        .order_by("created_at", direction=Query.DESCENDING)
-    )
+    query = db.collection(RVC_TRAIN_JOBS_COLLECTION).where("user_id", "==", user_id)
+
+    if status == "active":
+        query = query.where("status", "in", ["queued", "running"])
+    elif status is not None:
+        query = query.where("status", "==", status)
+
+    query = query.order_by("created_at", direction=Query.DESCENDING)
 
     if start_after:
         cursor_snap = db.collection(RVC_TRAIN_JOBS_COLLECTION).document(start_after).get()

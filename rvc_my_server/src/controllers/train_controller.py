@@ -50,9 +50,15 @@ class TrainController:
             logger.exception("Error in create training job")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
-    async def list_jobs(self, limit: int, start_after: Optional[str], auth: AuthContext):
+    async def list_jobs(
+        self,
+        limit: int,
+        start_after: Optional[str],
+        status: Optional[str],
+        auth: AuthContext,
+    ):
         try:
-            result = list_train_jobs(auth.user_id, limit, start_after)
+            result = list_train_jobs(auth.user_id, limit, start_after, status)
             return send_success_response(200, "Training jobs retrieved successfully", result)
         except Exception as exc:
             logger.exception("Error in list training jobs")

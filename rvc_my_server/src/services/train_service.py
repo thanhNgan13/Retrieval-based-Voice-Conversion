@@ -292,9 +292,14 @@ def get_train_job_detail(train_job_id: str, user_id: str) -> dict:
     return _public_job_view(doc)
 
 
-def list_train_jobs(user_id: str, limit: Optional[int], start_after: Optional[str]) -> dict:
+def list_train_jobs(
+    user_id: str,
+    limit: Optional[int],
+    start_after: Optional[str],
+    status: Optional[str] = None,
+) -> dict:
     n = normalize_limit(limit)
-    items, has_next = list_user_train_jobs_paginated(user_id, n, start_after)
+    items, has_next = list_user_train_jobs_paginated(user_id, n, start_after, status)
     views = [_public_job_view(d) for d in items]
     next_cursor = items[-1].get("train_job_id") if has_next and items else None
     return {
