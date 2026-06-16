@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RVC Song Infer Test UI</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --line: #d8dee9;
+      --text: #172033;
+      --muted: #647083;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --danger: #b91c1c;
+      --ok: #15803d;
+      --warn: #b45309;
+      --purple: #6d28d9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 24px auto 48px;
+    }
+    h1 { margin: 0 0 18px; font-size: 24px; line-height: 1.2; }
+    h2 { margin: 0 0 14px; font-size: 18px; }
+    h3 { margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .grid3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .full { grid-column: 1 / -1; }
+    label {
+      display: block;
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    input, select, textarea {
+      width: 100%;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+    textarea { min-height: 78px; resize: vertical; }
+    input[type="checkbox"] {
+      width: 16px;
+      min-height: 16px;
+      margin: 0 8px 0 0;
+      vertical-align: middle;
+    }
+    input[type="range"] {
+      min-height: unset;
+      height: 6px;
+      padding: 0;
+      accent-color: var(--primary);
+    }
+    .field { margin-bottom: 12px; }
+    .inline {
+      display: flex;
+      align-items: center;
+      min-height: 38px;
+    }
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .range-row input[type="range"] { flex: 1; }
+    .range-val {
+      min-width: 44px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .section-divider {
+      border: none;
+      border-top: 1px dashed var(--line);
+      margin: 16px 0;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    button {
+      min-height: 40px;
+      padding: 9px 14px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: var(--primary-dark); }
+    button.secondary {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--line);
+    }
+    button.secondary:hover { background: #f8fafc; }
+    button:disabled { cursor: not-allowed; opacity: 0.55; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .status.ok { background: #dcfce7; color: var(--ok); }
+    .status.fail { background: #fee2e2; color: var(--danger); }
+    .status.warn { background: #fef3c7; color: var(--warn); }
+    .status.running { background: #dbeafe; color: var(--primary); }
+    .progress-wrap {
+      margin: 12px 0 4px;
+    }
+    progress {
+      width: 100%;
+      height: 20px;
+      border-radius: 4px;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .stage-steps {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .stage-step {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: #f8fafc;
+    }
+    .stage-step.active {
+      background: #dbeafe;
+      color: var(--primary);
+      border-color: #93c5fd;
+    }
+    .stage-step.done {
+      background: #dcfce7;
+      color: var(--ok);
+      border-color: #86efac;
+    }
+    .stage-step.fail {
+      background: #fee2e2;
+      color: var(--danger);
+      border-color: #fca5a5;
+    }
+    pre {
+      margin: 0;
+      min-height: 220px;
+      max-height: 480px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .outputs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .output-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fafafa;
+    }
+    .output-card h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .output-card audio {
+      width: 100%;
+    }
+    .output-card a {
+      display: block;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--primary);
+      word-break: break-all;
+    }
+    .output-card.empty {
+      opacity: 0.45;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    @media (max-width: 780px) {
+      .grid, .grid3 { grid-template-columns: 1fr; }
+      main { width: min(100vw - 20px, 1180px); margin-top: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>RVC Song Infer Test UI</h1>
+
+    <!-- API Connection -->
+    <section class="panel">
+      <h2>Kết nối API</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="apiBase">API base URL</label>
+          <input id="apiBase" value="http://127.0.0.1:8000/dev/v1">
+        </div>
+        <div class="field">
+          <label for="accessToken">Access token</label>
+          <input id="accessToken" type="password" placeholder="Dán accessToken user vào đây">
+        </div>
+      </div>
+      <div class="hint">Cần chạy Redis, Celery worker và FastAPI trước khi test.</div>
+    </section>
+
+    <!-- Job Source -->
+    <section class="panel">
+      <h2>Nguồn bài hát</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="songId">songId <span class="tag">Firestore</span></label>
+          <input id="songId" placeholder="Ví dụ: songs/abc123">
+        </div>
+        <div class="field">
+          <label for="rvcModelId">rvcModelId</label>
+          <input id="rvcModelId" placeholder="Ví dụ: rvc_model_abc123">
+        </div>
+      </div>
+      <div class="hint">Dùng ID của bài hát đã có trong Firestore và ID của model RVC muốn áp dụng.</div>
+    </section>
+
+    <!-- Parameters -->
+    <section class="panel">
+      <h2>Tham số</h2>
+
+      <h3>Tách nguồn (Separation)</h3>
+      <div class="grid">
+        <div class="field inline">
+          <label><input id="separationDenoise" type="checkbox" checked> separationDenoise</label>
+        </div>
+        <div class="field inline">
+          <label><input id="separationKeepLocal" type="checkbox"> separationKeepLocal</label>
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <h3>Chuyển giọng (Inference)</h3>
+      <div class="grid3">
+        <div class="field">
+          <label for="f0Method">f0Method</label>
+          <select id="f0Method">
+            <option>pm</option>
+            <option>harvest</option>
+            <option>dio</option>
+            <option selected>rmvpe</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="speakerId">speakerId</label>
+          <input id="speakerId" type="number" min="0" value="0">
+        </div>
+        <div class="field">
+          <label for="f0UpKey">f0UpKey (semitones)</label>
+          <input id="f0UpKey" type="number" min="-24" max="24" value="0">
+        </div>
+        <div class="field">
+          <label for="filterRadius">filterRadius</label>
+          <div class="range-row">
+            <input id="filterRadius" type="range" min="0" max="7" value="3" oninput="syncRange('filterRadius')">
+            <span class="range-val" id="filterRadiusVal">3</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="resampleSr">resampleSr (0 = giữ nguyên)</label>
+          <input id="resampleSr" type="number" min="0" max="48000" step="100" value="0">
+        </div>
+        <div class="field">
+          <label for="indexRate">indexRate</label>
+          <div class="range-row">
+            <input id="indexRate" type="range" min="0" max="1" step="0.01" value="0.75" oninput="syncRange('indexRate')">
+            <span class="range-val" id="indexRateVal">0.75</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="rmsMixRate">rmsMixRate</label>
+          <div class="range-row">
+            <input id="rmsMixRate" type="range" min="0" max="1" step="0.01" value="0.25" oninput="syncRange('rmsMixRate')">
+            <span class="range-val" id="rmsMixRateVal">0.25</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="protect">protect</label>
+          <div class="range-row">
+            <input id="protect" type="range" min="0" max="0.5" step="0.01" value="0.33" oninput="syncRange('protect')">
+            <span class="range-val" id="protectVal">0.33</span>
+          </div>
+        </div>
+        <div class="field inline">
+          <label><input id="privateOnly" type="checkbox"> privateOnly</label>
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <h3>Mixing & Reverb</h3>
+      <div class="grid3">
+        <div class="field">
+          <label for="reverbRoomSize">reverbRoomSize</label>
+          <div class="range-row">
+            <input id="reverbRoomSize" type="range" min="0" max="1" step="0.01" value="0.15" oninput="syncRange('reverbRoomSize')">
+            <span class="range-val" id="reverbRoomSizeVal">0.15</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="reverbWetLevel">reverbWetLevel</label>
+          <div class="range-row">
+            <input id="reverbWetLevel" type="range" min="0" max="1" step="0.01" value="0.20" oninput="syncRange('reverbWetLevel')">
+            <span class="range-val" id="reverbWetLevelVal">0.20</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="reverbDryLevel">reverbDryLevel</label>
+          <div class="range-row">
+            <input id="reverbDryLevel" type="range" min="0" max="1" step="0.01" value="0.80" oninput="syncRange('reverbDryLevel')">
+            <span class="range-val" id="reverbDryLevelVal">0.80</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="reverbDamping">reverbDamping</label>
+          <div class="range-row">
+            <input id="reverbDamping" type="range" min="0" max="1" step="0.01" value="0.70" oninput="syncRange('reverbDamping')">
+            <span class="range-val" id="reverbDampingVal">0.70</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="mainGain">mainGain (dB)</label>
+          <input id="mainGain" type="number" min="-20" max="20" step="0.5" value="0">
+        </div>
+        <div class="field">
+          <label for="backupGain">backupGain (dB)</label>
+          <input id="backupGain" type="number" min="-20" max="20" step="0.5" value="0">
+        </div>
+        <div class="field">
+          <label for="instGain">instGain (dB)</label>
+          <input id="instGain" type="number" min="-20" max="20" step="0.5" value="0">
+        </div>
+        <div class="field">
+          <label for="outputFormat">outputFormat</label>
+          <select id="outputFormat">
+            <option selected>wav</option>
+            <option>mp3</option>
+          </select>
+        </div>
+        <div class="field inline">
+          <label><input id="mixingKeepLocal" type="checkbox"> mixingKeepLocal</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Run -->
+    <section class="panel">
+      <h2>Chạy infer</h2>
+      <div class="progress-wrap">
+        <progress id="progressBar" value="0" max="100"></progress>
+        <div class="progress-label">
+          <span id="progressPct">0%</span>
+          <span id="elapsedLabel">—</span>
+        </div>
+      </div>
+      <div class="stage-steps">
+        <span class="stage-step" id="stageQueued">queued</span>
+        <span class="stage-step" id="stageSeparation">separation</span>
+        <span class="stage-step" id="stageInference">inference</span>
+        <span class="stage-step" id="stageMixing">mixing</span>
+        <span class="stage-step" id="stageSucceeded">succeeded</span>
+        <span class="stage-step" id="stageFailed">failed</span>
+      </div>
+      <div class="actions">
+        <button id="startBtn">Tạo infer job</button>
+        <button id="reconnectBtn" class="secondary">Reconnect WebSocket</button>
+        <button id="pollBtn" class="secondary">Poll status</button>
+        <button id="clearBtn" class="secondary">Clear log</button>
+        <span id="statusBadge" class="status warn">idle</span>
+      </div>
+      <div class="hint">
+        UI sẽ gọi API tạo job từ <code>songId</code>, rồi tự mở WebSocket để nhận progress realtime.
+        Các message types: <strong>snapshot</strong>, <strong>progress</strong>, <strong>heartbeat</strong>, <strong>terminal</strong>, <strong>error</strong>.
+      </div>
+    </section>
+
+    <!-- Outputs -->
+    <section class="panel">
+      <h2>Output files</h2>
+      <div class="outputs-grid" id="outputsGrid">
+        <div class="output-card empty" id="outInstrumental">instrumental — chờ kết quả</div>
+        <div class="output-card empty" id="outBackupVocals">backupVocals — chờ kết quả</div>
+        <div class="output-card empty" id="outMainVocalsDereverd">mainVocals (dereverd) — chờ kết quả</div>
+        <div class="output-card empty" id="outAiVocals">aiVocals — chờ kết quả</div>
+        <div class="output-card empty" id="outFinalMix">finalMix — chờ kết quả</div>
+      </div>
+    </section>
+
+    <!-- Log -->
+    <section class="panel">
+      <h2>Realtime log</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const statusBadge = $("statusBadge");
+    const progressBar = $("progressBar");
+    const startBtn = $("startBtn");
+    const STORAGE_KEY = "rvc_song_infer_test_ui_state";
+    const STAGES = ["queued", "separation", "inference", "mixing", "succeeded", "failed"];
+    let ws = null;
+    let currentJobId = "";
+
+    // ── Range slider sync ────────────────────────────────────────────────────
+    function syncRange(id) {
+      const val = parseFloat($(id).value);
+      const display = Number.isInteger(val) ? val : val.toFixed(2);
+      $(`${id}Val`).textContent = display;
+    }
+
+    // ── Persistence ──────────────────────────────────────────────────────────
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          log: logEl.textContent,
+          statusText: statusBadge.textContent,
+          statusClass: statusBadge.className,
+          progress: progressBar.value,
+          apiBase: $("apiBase").value,
+          accessToken: $("accessToken").value,
+          songId: $("songId").value,
+          rvcModelId: $("rvcModelId").value,
+          currentJobId
+        }));
+      } catch (_) {}
+    }
+
+    function restoreState() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const s = JSON.parse(raw);
+        logEl.textContent = s.log || "";
+        statusBadge.textContent = s.statusText || "idle";
+        statusBadge.className = s.statusClass || "status warn";
+        progressBar.value = Number(s.progress || 0);
+        updateProgressLabel(Number(s.progress || 0));
+        if (s.apiBase) $("apiBase").value = s.apiBase;
+        if (s.accessToken) $("accessToken").value = s.accessToken;
+        if (s.songId) $("songId").value = s.songId;
+        if (s.rvcModelId) $("rvcModelId").value = s.rvcModelId;
+        currentJobId = s.currentJobId || "";
+        logEl.scrollTop = logEl.scrollHeight;
+      } catch (_) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    // ── Log ──────────────────────────────────────────────────────────────────
+    function log(message, data) {
+      const time = new Date().toLocaleTimeString();
+      const line = data === undefined
+        ? `[${time}] ${message}`
+        : `[${time}] ${message}\n${JSON.stringify(data, null, 2)}`;
+      logEl.textContent += `${line}\n\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+      saveState();
+    }
+
+    // ── Status & progress ────────────────────────────────────────────────────
+    function setStatus(text, kind) {
+      statusBadge.textContent = text;
+      statusBadge.className = `status ${kind || ""}`.trim();
+      saveState();
+    }
+
+    function updateProgressLabel(pct) {
+      $("progressPct").textContent = `${pct}%`;
+    }
+
+    function applyProgress(data) {
+      if (typeof data.progress === "number") {
+        progressBar.value = data.progress;
+        updateProgressLabel(data.progress);
+      }
+      if (typeof data.elapsedMs === "number") {
+        $("elapsedLabel").textContent = formatElapsed(data.elapsedMs);
+      }
+      if (data.status) {
+        const kind = data.status === "succeeded" ? "ok"
+          : data.status === "failed" ? "fail"
+          : data.status === "processing" || data.status === "running" ? "running"
+          : "warn";
+        const stage = data.stage || data.status;
+        const pct = data.progress != null ? data.progress : 0;
+        const msg = data.message ? ` — ${data.message}` : "";
+        setStatus(`${data.status} | ${stage} | ${pct}%${msg}`, kind);
+        highlightStage(data.status, data.stage);
+      }
+      if (data.outputs) {
+        renderOutputs(data.outputs);
+      }
+    }
+
+    function formatElapsed(ms) {
+      if (!ms) return "—";
+      const s = Math.floor(ms / 1000);
+      if (s < 60) return `${s}s`;
+      return `${Math.floor(s / 60)}m ${s % 60}s`;
+    }
+
+    function highlightStage(status, stage) {
+      const active = stage || status;
+      const isDone = status === "succeeded";
+      const isFailed = status === "failed";
+      const passedStages = new Set();
+      let found = false;
+      for (const s of STAGES) {
+        if (s === active) { found = true; break; }
+        if (!found) passedStages.add(s);
+      }
+      for (const s of STAGES) {
+        const el = $(`stage${s.charAt(0).toUpperCase() + s.slice(1)}`);
+        if (!el) continue;
+        el.className = "stage-step";
+        if (s === "failed") {
+          if (isFailed) el.classList.add("fail");
+        } else if (s === "succeeded") {
+          if (isDone) el.classList.add("done");
+        } else if (passedStages.has(s)) {
+          el.classList.add("done");
+        } else if (s === active) {
+          el.classList.add(isFailed ? "fail" : "active");
+        }
+      }
+    }
+
+    function renderOutputs(outputs) {
+      const map = {
+        outInstrumental: { key: "instrumentalUrl", label: "Instrumental" },
+        outBackupVocals: { key: "backupVocalsUrl", label: "Backup Vocals" },
+        outMainVocalsDereverd: { key: "mainVocalsDereverbUrl", label: "Main Vocals (dereverd)" },
+        outAiVocals: { key: "aiVocalsUrl", label: "AI Vocals" },
+        outFinalMix: { key: "finalMixUrl", label: "Final Mix" },
+      };
+      for (const [elId, { key, label }] of Object.entries(map)) {
+        const el = $(elId);
+        const url = outputs[key];
+        if (!url) continue;
+        el.className = "output-card";
+        el.innerHTML = `
+          <h4>${label}</h4>
+          <audio controls src="${escapeHtml(url)}"></audio>
+          <a href="${escapeHtml(url)}" target="_blank" rel="noopener">Tải xuống</a>
+        `;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    // ── API ──────────────────────────────────────────────────────────────────
+    function apiBase() {
+      return $("apiBase").value.replace(/\/+$/, "");
+    }
+
+    function wsBase() {
+      const base = apiBase();
+      if (base.startsWith("https://")) return `wss://${base.slice(8)}`;
+      if (base.startsWith("http://")) return `ws://${base.slice(7)}`;
+      return base;
+    }
+
+    function token() {
+      return $("accessToken").value.trim();
+    }
+
+    async function apiFetch(path, options = {}) {
+      const headers = {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token()}`
+      };
+      if (options.body && !(options.body instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+      }
+      const response = await fetch(`${apiBase()}${path}`, { ...options, headers });
+      const text = await response.text();
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch (_) {}
+      if (!response.ok) {
+        throw new Error(json ? JSON.stringify(json, null, 2) : text || response.statusText);
+      }
+      return json;
+    }
+
+    // ── Build request body ───────────────────────────────────────────────────
+    function buildJobRequest() {
+      return {
+        songId: $("songId").value.trim(),
+        rvcModelId: $("rvcModelId").value.trim(),
+        separationDenoise: $("separationDenoise").checked,
+        separationKeepLocal: $("separationKeepLocal").checked,
+        privateOnly: $("privateOnly").checked,
+        speakerId: Number($("speakerId").value),
+        f0UpKey: Number($("f0UpKey").value),
+        f0Method: $("f0Method").value,
+        indexRate: parseFloat($("indexRate").value),
+        filterRadius: Number($("filterRadius").value),
+        resampleSr: Number($("resampleSr").value),
+        rmsMixRate: parseFloat($("rmsMixRate").value),
+        protect: parseFloat($("protect").value),
+        reverbRoomSize: parseFloat($("reverbRoomSize").value),
+        reverbWetLevel: parseFloat($("reverbWetLevel").value),
+        reverbDryLevel: parseFloat($("reverbDryLevel").value),
+        reverbDamping: parseFloat($("reverbDamping").value),
+        mainGain: parseFloat($("mainGain").value),
+        backupGain: parseFloat($("backupGain").value),
+        instGain: parseFloat($("instGain").value),
+        outputFormat: $("outputFormat").value,
+        mixingKeepLocal: $("mixingKeepLocal").checked
+      };
+    }
+
+    async function createJob() {
+      const body = buildJobRequest();
+      log("Create song infer job", body);
+      const result = await apiFetch("/song-infer-services/jobs/from-song-id", {
+        method: "POST",
+        body: JSON.stringify(body)
+      });
+      log("Job queued", result.data);
+      return result.data;
+    }
+
+    async function pollCurrentJob() {
+      if (!currentJobId) { alert("Chưa có songInferJobId."); return; }
+      if (!token()) { alert("Bạn cần nhập accessToken."); return; }
+      const result = await apiFetch(`/song-infer-services/jobs/${encodeURIComponent(currentJobId)}`);
+      log("Poll job status", result.data);
+      applyProgress(result.data || {});
+      saveState();
+      return result.data;
+    }
+
+    // ── WebSocket ────────────────────────────────────────────────────────────
+    function connectProgressSocket(jobId) {
+      if (ws) { ws.close(); ws = null; }
+      currentJobId = jobId;
+      saveState();
+      const url = `${wsBase()}/song-infer-services/jobs/${encodeURIComponent(jobId)}/ws?token=${encodeURIComponent(token())}`;
+      log("Open WebSocket", { url });
+      ws = new WebSocket(url);
+
+      ws.onopen = () => log("WebSocket connected");
+
+      ws.onmessage = (event) => {
+        let payload;
+        try { payload = JSON.parse(event.data); } catch (_) { log("WebSocket raw", { raw: event.data }); return; }
+        const type = payload.type || "unknown";
+        const data = payload.data || {};
+
+        if (type === "heartbeat") {
+          log(`♥ heartbeat — stage: ${data.stage || "?"} | progress: ${data.progress ?? "?"}%`);
+          applyProgress(data);
+          return;
+        }
+
+        log(`WebSocket [${type}]`, payload);
+        applyProgress(data);
+
+        if (type === "terminal") {
+          if (data.status === "succeeded") {
+            log("Job succeeded. Outputs ready.", data.outputs);
+          } else if (data.status === "failed") {
+            log("Job failed.", { error: data.error });
+          }
+        }
+      };
+
+      ws.onerror = () => log("WebSocket error. Kiểm tra token, jobId, Redis, và server logs.");
+
+      ws.onclose = (event) => {
+        log("WebSocket closed", { code: event.code, reason: event.reason });
+        if (event.code === 1000) return; // server closed normally (terminal)
+        setTimeout(async () => {
+          try {
+            const status = await pollCurrentJob();
+            if (status && !["succeeded", "failed"].includes(status.status) && token()) {
+              log("Reconnect WebSocket sau close…");
+              connectProgressSocket(currentJobId);
+            }
+          } catch (err) {
+            log("Reconnect skipped", { message: err.message });
+          }
+        }, 2500);
+      };
+    }
+
+    // ── Main flow ────────────────────────────────────────────────────────────
+    async function startInfer() {
+      if (!token()) { alert("Bạn cần nhập accessToken."); return; }
+      if (!$("songId").value.trim()) { alert("Bạn cần nhập songId."); return; }
+      if (!$("rvcModelId").value.trim()) { alert("Bạn cần nhập rvcModelId."); return; }
+
+      startBtn.disabled = true;
+      progressBar.value = 0;
+      updateProgressLabel(0);
+      $("elapsedLabel").textContent = "—";
+      setStatus("starting…", "warn");
+      STAGES.forEach(s => {
+        const el = $(`stage${s.charAt(0).toUpperCase() + s.slice(1)}`);
+        if (el) el.className = "stage-step";
+      });
+
+      try {
+        const job = await createJob();
+        applyProgress(job);
+        connectProgressSocket(job.songInferJobId);
+      } catch (err) {
+        setStatus("failed", "fail");
+        log("Error", { message: err.message });
+        alert(err.message);
+      } finally {
+        startBtn.disabled = false;
+      }
+    }
+
+    // ── Events ───────────────────────────────────────────────────────────────
+    $("startBtn").addEventListener("click", startInfer);
+
+    $("reconnectBtn").addEventListener("click", () => {
+      if (!currentJobId) { alert("Chưa có songInferJobId để reconnect."); return; }
+      connectProgressSocket(currentJobId);
+    });
+
+    $("pollBtn").addEventListener("click", () => {
+      pollCurrentJob().catch((err) => {
+        log("Poll error", { message: err.message });
+        alert(err.message);
+      });
+    });
+
+    $("clearBtn").addEventListener("click", () => {
+      logEl.textContent = "";
+      progressBar.value = 0;
+      updateProgressLabel(0);
+      $("elapsedLabel").textContent = "—";
+      currentJobId = "";
+      localStorage.removeItem(STORAGE_KEY);
+      setStatus("idle", "warn");
+      STAGES.forEach(s => {
+        const el = $(`stage${s.charAt(0).toUpperCase() + s.slice(1)}`);
+        if (el) el.className = "stage-step";
+      });
+      document.querySelectorAll(".output-card").forEach(el => {
+        el.className = "output-card empty";
+        el.innerHTML = el.id.replace("out", "").replace(/([A-Z])/g, " $1").trim() + " — chờ kết quả";
+      });
+    });
+
+    $("apiBase").addEventListener("change", saveState);
+    $("accessToken").addEventListener("input", saveState);
+    $("songId").addEventListener("input", saveState);
+    $("rvcModelId").addEventListener("input", saveState);
+
+    restoreState();
+  </script>
+</body>
+</html>

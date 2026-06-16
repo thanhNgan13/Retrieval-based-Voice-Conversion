@@ -149,9 +149,9 @@ def upload_rvc_model(
         raise
 
 
-def list_rvc_models(limit: Optional[int], start_after: Optional[str]) -> dict:
+def list_rvc_models(limit: Optional[int], start_after: Optional[str], q: Optional[str] = None) -> dict:
     n = normalize_limit(limit)
-    items, has_next = list_rvc_models_paginated(n, start_after)
+    items, has_next = list_rvc_models_paginated(n, start_after, q=q)
 
     paginated_items = [_public_view(d) for d in items]
     next_cursor = items[-1].get("rvc_model_id") if has_next and items else None

@@ -28,6 +28,8 @@ def prepare_cover_data(
         "source_song": {
             "file_name": job_doc.get("input_file_name", ""),
             "input_object_path": job_doc.get("input_object_path", ""),
+            "source_song_id": job_doc.get("source_song_id", ""),
+            "song_info": job_doc.get("song_info") or {},
         },
         "rvc_model_id": job_doc.get("rvc_model_id", ""),
         "rvc_model": rvc_model or {},

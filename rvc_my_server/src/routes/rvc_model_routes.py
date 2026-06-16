@@ -43,8 +43,9 @@ async def upload(
 async def list_models(
     limit: Optional[int] = Query(default=10, ge=1, le=100, description="Số item/trang (1–100)."),
     startAfter: Optional[str] = Query(default=None, description="rvcModelId làm cursor trang kế."),
+    q: Optional[str] = Query(default=None, description="Tìm kiếm theo tiền tố title (bỏ trống để lấy tất cả)."),
 ):
-    return await rvc_model_controller.list(limit=limit, start_after=startAfter)
+    return await rvc_model_controller.list(limit=limit, start_after=startAfter, q=q)
 
 
 @router.post(

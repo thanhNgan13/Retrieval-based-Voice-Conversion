@@ -47,9 +47,9 @@ class RvcModelController:
             logger.exception("Error in upload rvc model")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
-    async def list(self, limit: Optional[int], start_after: Optional[str]):
+    async def list(self, limit: Optional[int], start_after: Optional[str], q: Optional[str] = None):
         try:
-            result = list_rvc_models(limit=limit, start_after=start_after)
+            result = list_rvc_models(limit=limit, start_after=start_after, q=q)
             return send_success_response(200, "RVC models retrieved successfully", result)
         except Exception as exc:
             logger.exception("Error in list rvc models")

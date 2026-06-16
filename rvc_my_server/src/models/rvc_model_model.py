@@ -73,19 +73,28 @@ def delete_rvc_model_from_firestore(rvc_model_id: str) -> Optional[dict]:
 def list_rvc_models_paginated(
     limit: int,
     start_after: Optional[str],
+    q: Optional[str] = None,
 ) -> Tuple[list, bool]:
     """
     Sort by created_at DESC. Fetches limit+1 to detect hasNext.
+    When q is given, does prefix search on title ordered by title ASC.
     Returns (items_up_to_limit, has_next).
     """
     db = get_db()
-    query = (
-        db.collection(RVC_MODELS_COLLECTION)
-        .order_by("created_at", direction=Query.DESCENDING)
-    )
+    col = db.collection(RVC_MODELS_COLLECTION)
+
+    if q:
+        query = (
+            col
+            .order_by("title")
+            .where("title", ">=", q)
+            .where("title", "<=", q + "")
+        )
+    else:
+        query = col.order_by("created_at", direction=Query.DESCENDING)
 
     if start_after:
-        cursor_snap = db.collection(RVC_MODELS_COLLECTION).document(start_after).get()
+        cursor_snap = col.document(start_after).get()
         if cursor_snap.exists:
             query = query.start_after(cursor_snap)
 
