@@ -20,7 +20,11 @@ celery_app = Celery(
 
 celery_app.conf.update(
     task_track_started=True,
+    # Fetch only one task at a time so the scheduler (not Celery) controls concurrency.
     worker_prefetch_multiplier=1,
     task_acks_late=True,
     timezone="UTC",
+    # Allow multiple tasks to run concurrently inside one worker process.
+    # Start the worker with --pool=threads --concurrency=N to match this value.
+    worker_concurrency=settings.CELERY_WORKER_CONCURRENCY,
 )

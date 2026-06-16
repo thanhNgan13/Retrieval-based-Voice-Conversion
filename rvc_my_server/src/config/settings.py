@@ -39,5 +39,16 @@ class Settings(BaseSettings):
     SIGNED_UPLOAD_URL_EXPIRES_SECONDS: int = 3600
     SIGNED_DOWNLOAD_URL_EXPIRES_SECONDS: int = 3600
 
+    # Resource-aware job scheduler.
+    # VRAM budget (MB) per job type — tune to match your GPU capacity.
+    TRAIN_JOB_VRAM_MB: int = 4096
+    INFER_JOB_VRAM_MB: int = 3072
+    # Used as total budget when CUDA is not available (CPU-only or test env).
+    FALLBACK_TOTAL_VRAM_MB: int = 8192
+    # How often the scheduler polls for queued jobs (seconds).
+    SCHEDULER_INTERVAL_SECONDS: float = 3.0
+    # Celery worker thread pool size — must be >= max expected concurrent jobs.
+    CELERY_WORKER_CONCURRENCY: int = 4
+
 
 settings = Settings()

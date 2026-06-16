@@ -89,52 +89,51 @@ def _run_separation_stage(
         12,
         "Separating vocal and instrumental with MDX-Net",
     )
-    with infer_engine.engine_lock():
-        vocals_path, instrumental_path = _run_mdx_standalone(
-            output_dir=str(output_dir),
-            model_path=model_paths["vocal"],
-            filename=str(input_local),
-            providers=providers,
-            denoise=denoise,
-        )
+    vocals_path, instrumental_path = _run_mdx_standalone(
+        output_dir=str(output_dir),
+        model_path=model_paths["vocal"],
+        filename=str(input_local),
+        providers=providers,
+        denoise=denoise,
+    )
 
-        publish_song_infer_progress(
-            song_infer_job_id,
-            "running",
-            "separation_backup_main",
-            24,
-            "Separating backup vocals and main vocals",
-        )
-        backup_vocals_path, main_vocals_path = _run_mdx_standalone(
-            output_dir=str(output_dir),
-            model_path=model_paths["karaoke"],
-            filename=vocals_path,
-            providers=providers,
-            suffix="Backup",
-            invert_suffix="Main",
-            denoise=denoise,
-        )
-        if vocals_path and os.path.exists(vocals_path):
-            os.remove(vocals_path)
+    publish_song_infer_progress(
+        song_infer_job_id,
+        "running",
+        "separation_backup_main",
+        24,
+        "Separating backup vocals and main vocals",
+    )
+    backup_vocals_path, main_vocals_path = _run_mdx_standalone(
+        output_dir=str(output_dir),
+        model_path=model_paths["karaoke"],
+        filename=vocals_path,
+        providers=providers,
+        suffix="Backup",
+        invert_suffix="Main",
+        denoise=denoise,
+    )
+    if vocals_path and os.path.exists(vocals_path):
+        os.remove(vocals_path)
 
-        publish_song_infer_progress(
-            song_infer_job_id,
-            "running",
-            "separation_dereverb",
-            34,
-            "Dereverbing main vocals",
-        )
-        _, main_vocals_dereverb_path = _run_mdx_standalone(
-            output_dir=str(output_dir),
-            model_path=model_paths["dereverb"],
-            filename=main_vocals_path,
-            providers=providers,
-            invert_suffix="DeReverb",
-            exclude_main=True,
-            denoise=denoise,
-        )
-        if main_vocals_path and os.path.exists(main_vocals_path):
-            os.remove(main_vocals_path)
+    publish_song_infer_progress(
+        song_infer_job_id,
+        "running",
+        "separation_dereverb",
+        34,
+        "Dereverbing main vocals",
+    )
+    _, main_vocals_dereverb_path = _run_mdx_standalone(
+        output_dir=str(output_dir),
+        model_path=model_paths["dereverb"],
+        filename=main_vocals_path,
+        providers=providers,
+        invert_suffix="DeReverb",
+        exclude_main=True,
+        denoise=denoise,
+    )
+    if main_vocals_path and os.path.exists(main_vocals_path):
+        os.remove(main_vocals_path)
 
     return {
         "instrumental": Path(instrumental_path),

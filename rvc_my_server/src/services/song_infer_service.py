@@ -6,7 +6,6 @@ from typing import Optional
 
 from fastapi import UploadFile
 
-from src.config.celery_app import celery_app
 from src.config.firebase import get_bucket
 from src.models.song_infer_job_model import (
     add_song_infer_job_to_firestore,
@@ -125,8 +124,7 @@ def create_song_infer_job(
         params=params,
     )
     add_song_infer_job_to_firestore(doc)
-
-    celery_app.send_task("infer_song_cover", args=[song_infer_job_id])
+    # Scheduler picks this up on its next tick (or immediately via Redis trigger).
     return _public_job_view(doc)
 
 

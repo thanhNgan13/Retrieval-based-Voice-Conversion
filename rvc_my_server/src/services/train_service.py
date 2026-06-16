@@ -278,10 +278,7 @@ def create_train_job(body: CreateTrainJobRequest, user_id: str) -> dict:
         params=params,
     )
     add_train_job_to_firestore(doc)
-
-    from src.tasks.train_tasks import train_rvc_model_task
-
-    train_rvc_model_task.delay(train_job_id)
+    # Scheduler picks this up on its next tick (or immediately via Redis trigger).
     return _public_job_view(doc)
 
 

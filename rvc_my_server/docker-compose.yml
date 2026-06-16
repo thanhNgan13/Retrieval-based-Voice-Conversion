@@ -129,10 +129,11 @@ services:
     volumes: *rvc-volumes
     deploy:
       <<: *rvc-gpu-deploy
-    # --pool=solo is required on Windows hosts (prefork is unreliable in WSL2).
-    # It queues many jobs but runs one audio/GPU job at a time per worker process.
-    # On Linux switch to --pool=prefork --concurrency=1 if desired.
-    command: celery -A src.config.celery_app worker --loglevel=info --pool=solo
+    # --pool=threads allows multiple GPU jobs to run concurrently inside one
+    # process, sharing the same CUDA context. Resource allocation is managed by
+    # the JobScheduler (Redis-backed VRAM budget) — not by Celery concurrency.
+    # Adjust --concurrency to match CELERY_WORKER_CONCURRENCY in .env (default 4).
+    command: celery -A src.config.celery_app worker --loglevel=info --pool=threads --concurrency=4
 
 volumes:
   redis-data:

@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Request
@@ -17,7 +18,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Only the GPU infer container (APP_ROLE=infer) or local dev (no APP_ROLE)
+    # runs the scheduler. api-light has no torch/GPU so it must not schedule.
+    import os
+    should_schedule = os.environ.get("APP_ROLE", "") != "light"
+    if should_schedule:
+        from src.services.job_scheduler import job_scheduler
+        job_scheduler.start()
+    yield
+    if should_schedule:
+        from src.services.job_scheduler import job_scheduler
+        await job_scheduler.stop()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="RVC My Server",
     description="Backend API for the RVC voice-conversion mobile app (phase 1: auth + user).",
     version="1.0.0",
