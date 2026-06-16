@@ -116,18 +116,18 @@ def _dispatch_queued_jobs() -> None:
     resource_manager.sync_stale_allocations(train_running | infer_running)
 
     # --- 2. Fetch queued jobs from both collections ---
+    # No order_by here — sorting is done in Python after merging, so no
+    # composite index is needed (Firestore auto-indexes single fields).
     train_queued = [
         d.to_dict()
         for d in db.collection(RVC_TRAIN_JOBS_COLLECTION)
                    .where("status", "==", "queued")
-                   .order_by("created_at")
                    .stream()
     ]
     infer_queued = [
         d.to_dict()
         for d in db.collection(RVC_SONG_INFER_JOBS_COLLECTION)
                    .where("status", "==", "queued")
-                   .order_by("created_at")
                    .stream()
     ]
 
