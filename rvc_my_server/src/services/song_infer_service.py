@@ -237,9 +237,9 @@ def create_song_infer_job_from_song_id(body, user_id: str) -> dict:
     if not song_doc:
         raise InvalidSongInferRequestError("Song '%s' not found" % body.songId)
 
-    audio_url = song_doc.get("audioUrl") or ""
+    audio_url = song_doc.get("audio_url") or ""
     if not audio_url:
-        raise InvalidSongInferRequestError("Song '%s' has no audioUrl" % body.songId)
+        raise InvalidSongInferRequestError("Song '%s' has no audio_url" % body.songId)
 
     title = song_doc.get("title") or body.songId
     safe_title = re.sub(r"[^a-zA-Z0-9._-]+", "_", title).strip("._-") or "song"
@@ -260,9 +260,9 @@ def create_song_infer_job_from_song_id(body, user_id: str) -> dict:
             "title": song_doc.get("title", ""),
             "artists": song_doc.get("artists", []),
             "duration": song_doc.get("duration", ""),
-            "coverImage": song_doc.get("coverImage", ""),
-            "audioUrl": song_doc.get("audioUrl", ""),
-            "playlistId": song_doc.get("playlistId", ""),
+            "cover_image": song_doc.get("cover_image", ""),
+            "audio_url": song_doc.get("audio_url", ""),
+            "playlist_id": song_doc.get("playlist_id", ""),
             "uploader": song_doc.get("uploader", ""),
         },
     )
