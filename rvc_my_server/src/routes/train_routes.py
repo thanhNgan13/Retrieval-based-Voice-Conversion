@@ -126,6 +126,22 @@ async def job_detail(
     return await train_controller.job_detail(train_job_id, auth)
 
 
+@router.post(
+    "/jobs/{train_job_id}/retrain",
+    summary="Retry a failed training job",
+    description=(
+        "Tạo một training job mới với cùng audio files và params từ job đã fail. "
+        "Chỉ cho phép khi job gốc có status=failed. "
+        "Trả về job mới với trainJobId riêng để theo dõi qua WebSocket."
+    ),
+)
+async def retrain_job(
+    train_job_id: str,
+    auth: AuthContext = Depends(authenticate_token),
+):
+    return await train_controller.retrain_job(train_job_id, auth)
+
+
 @router.get(
     "/uploads",
     summary="List current user's uploaded training audio files",

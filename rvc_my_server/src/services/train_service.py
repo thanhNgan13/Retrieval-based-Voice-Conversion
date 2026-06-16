@@ -282,6 +282,39 @@ def create_train_job(body: CreateTrainJobRequest, user_id: str) -> dict:
     return _public_job_view(doc)
 
 
+def retrain_train_job(train_job_id: str, user_id: str) -> dict:
+    original = get_train_job_by_id(train_job_id)
+    if not original or original.get("user_id") != user_id:
+        raise TrainJobNotFoundError("Training job not found")
+    if original.get("status") != "failed":
+        raise InvalidTrainRequestError(
+            "Only failed jobs can be retrained (current status: %s)" % original.get("status")
+        )
+
+    audio_object_paths = original.get("audio_object_paths") or []
+    if not audio_object_paths:
+        raise InvalidTrainRequestError("Original job has no audio_object_paths to retrain from")
+
+    bucket = get_bucket()
+    missing = [p for p in audio_object_paths if not bucket.blob(p).exists()]
+    if missing:
+        raise InvalidTrainRequestError(
+            "Some audio files from the original job no longer exist in Storage: %s" % missing
+        )
+
+    new_job_id = generate_train_job_id()
+    doc = prepare_train_job_data(
+        train_job_id=new_job_id,
+        user_id=user_id,
+        title=original.get("title", ""),
+        description=original.get("description", ""),
+        audio_object_paths=audio_object_paths,
+        params=original.get("params") or {},
+    )
+    add_train_job_to_firestore(doc)
+    return _public_job_view(doc)
+
+
 def get_train_job_detail(train_job_id: str, user_id: str) -> dict:
     doc = get_train_job_by_id(train_job_id)
     if not doc or doc.get("user_id") != user_id:

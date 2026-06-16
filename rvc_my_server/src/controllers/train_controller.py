@@ -19,6 +19,7 @@ from src.services.train_service import (
     list_uploaded_training_audios,
     list_private_rvc_models,
     list_train_jobs,
+    retrain_train_job,
 )
 from src.utils.send_response import send_error_response, send_success_response
 
@@ -48,6 +49,18 @@ class TrainController:
             return send_error_response(400, "VALIDATION_FAILED", str(exc))
         except Exception as exc:
             logger.exception("Error in create training job")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def retrain_job(self, train_job_id: str, auth: AuthContext):
+        try:
+            result = retrain_train_job(train_job_id, auth.user_id)
+            return send_success_response(202, "Retrain job queued", result)
+        except TrainJobNotFoundError as exc:
+            return send_error_response(404, "NOT_FOUND", str(exc))
+        except InvalidTrainRequestError as exc:
+            return send_error_response(400, "VALIDATION_FAILED", str(exc))
+        except Exception as exc:
+            logger.exception("Error in retrain training job")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
     async def list_jobs(
