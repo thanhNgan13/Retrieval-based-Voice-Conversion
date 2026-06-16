@@ -22,6 +22,7 @@ from src.services.song_infer_errors import (
     SongInferJobNotFoundError,
 )
 from src.services.list_cover_service import list_covers
+from src.services.recent_model_service import RvcModelNotFoundError, add_recent_model
 from src.utils.constant import SONG_INFER_INPUT_FOLDER
 from src.utils.cursor_pagination import normalize_limit
 from src.utils.data_transform import convert_firestore_doc
@@ -125,6 +126,13 @@ def create_song_infer_job(
         song_info=None,
     )
     add_song_infer_job_to_firestore(doc)
+
+    if not private_only and model_doc.get("user_id") != user_id:
+        try:
+            add_recent_model(user_id, rvc_model_id)
+        except (RvcModelNotFoundError, Exception) as exc:
+            logger.warning("Failed to add recent model %s for user %s: %s", rvc_model_id, user_id, exc)
+
     # Scheduler picks this up on its next tick (or immediately via Redis trigger).
     return _public_job_view(doc)
 
@@ -267,4 +275,11 @@ def create_song_infer_job_from_song_id(body, user_id: str) -> dict:
         },
     )
     add_song_infer_job_to_firestore(doc)
+
+    if not private_only and model_doc.get("user_id") != user_id:
+        try:
+            add_recent_model(user_id, rvc_model_id)
+        except (RvcModelNotFoundError, Exception) as exc:
+            logger.warning("Failed to add recent model %s for user %s: %s", rvc_model_id, user_id, exc)
+
     return _public_job_view(doc)

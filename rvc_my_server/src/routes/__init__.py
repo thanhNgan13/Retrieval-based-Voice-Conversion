@@ -26,6 +26,7 @@ def register_routes(app: FastAPI) -> None:
     if APP_ROLE in ("all", "light"):
         from src.routes.admin_routes import router as admin_router
         from src.routes.auth_routes import router as auth_router
+        from src.routes.recent_model_routes import router as recent_model_router
         from src.routes.recent_song_routes import router as recent_song_router
         from src.routes.rvc_model_routes import router as rvc_model_router
         from src.routes.song_infer_routes import router as song_infer_router
@@ -55,6 +56,11 @@ def register_routes(app: FastAPI) -> None:
             recent_song_router,
             prefix=f"{API_BASE_PATH}/user-services/recent-songs",
             tags=["Recent Songs"],
+        )
+        app.include_router(
+            recent_model_router,
+            prefix=f"{API_BASE_PATH}/user-services/recent-models",
+            tags=["Recent Models"],
         )
         app.include_router(
             admin_router, prefix=f"{API_BASE_PATH}/admin-services", tags=["Admin"]
