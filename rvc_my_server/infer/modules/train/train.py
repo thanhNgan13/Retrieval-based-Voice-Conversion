@@ -119,7 +119,8 @@ def main():
 
     for i in range(n_gpus):
         children[i].join()
-    success_codes = (0, None, RVC_TRAIN_SUCCESS_EXIT_CODE)
+    # os._exit(2333333) is truncated to 8 bits by the OS → 2333333 % 256 = 149
+    success_codes = (0, None, RVC_TRAIN_SUCCESS_EXIT_CODE, RVC_TRAIN_SUCCESS_EXIT_CODE % 256)
     failed = [p.exitcode for p in children if p.exitcode not in success_codes]
     if failed:
         raise SystemExit("RVC train child process failed with exit codes: %s" % failed)
