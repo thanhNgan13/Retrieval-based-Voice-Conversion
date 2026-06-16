@@ -165,7 +165,7 @@ def _get_song_by_id(song_id: str) -> Optional[dict]:
     db = get_db()
     snaps = (
         db.collection_group("songs")
-        .where(filter=("id", "==", song_id))
+        .where("id", "==", song_id)
         .limit(1)
         .get()
     )
