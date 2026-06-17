@@ -127,6 +127,9 @@ services:
       <<: *rvc-env
       APP_ROLE: worker
     volumes: *rvc-volumes
+    # PyTorch DataLoader uses /dev/shm to share tensors between worker processes.
+    # Default Docker shm (64 MB) is too small for RVC training and causes SIGBUS.
+    shm_size: "2gb"
     deploy:
       <<: *rvc-gpu-deploy
     # --pool=threads allows multiple GPU jobs to run concurrently inside one
