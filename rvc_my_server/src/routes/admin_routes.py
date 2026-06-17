@@ -143,6 +143,19 @@ async def backfill_covers(_: AuthContext = Depends(authenticate_token_admin)):
 
 
 @router.post(
+    "/migrate-covers-song-info",
+    summary="Thêm song_info vào các cover cũ thiếu thông tin bài hát",
+    description=(
+        "Quét toàn bộ cover trong `list_cover`, tìm các cover được tạo từ song_id "
+        "nhưng chưa có `source_song.song_info`, rồi lấy dữ liệu từ job document tương ứng "
+        "và cập nhật vào Firestore. Chạy một lần sau khi deploy fix song_info."
+    ),
+)
+async def migrate_covers_song_info(_: AuthContext = Depends(authenticate_token_admin)):
+    return await admin_controller.migrate_covers_song_info()
+
+
+@router.post(
     "/setup-training-assets",
     summary="Cài/tải các asset cần cho training RVC",
     description=(

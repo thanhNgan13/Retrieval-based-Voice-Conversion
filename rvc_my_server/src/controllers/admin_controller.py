@@ -9,7 +9,10 @@ from src.services.admin_service import (
     admin_refresh_access_token,
     list_all_users,
 )
-from src.services.list_cover_service import backfill_covers_from_succeeded_jobs
+from src.services.list_cover_service import (
+    backfill_covers_from_succeeded_jobs,
+    migrate_covers_add_song_info,
+)
 from src.services.asset_service import (
     get_assets_status,
     get_mdxnet_assets_status,
@@ -151,6 +154,14 @@ class AdminController:
             return send_success_response(200, "Cover backfill completed", result)
         except Exception as exc:
             logger.exception("Error in admin backfill_covers")
+            return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
+
+    async def migrate_covers_song_info(self):
+        try:
+            result = migrate_covers_add_song_info()
+            return send_success_response(200, "Cover song_info migration completed", result)
+        except Exception as exc:
+            logger.exception("Error in admin migrate_covers_song_info")
             return send_error_response(500, "INTERNAL_SERVER_ERROR", str(exc))
 
 

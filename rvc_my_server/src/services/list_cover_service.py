@@ -1,13 +1,18 @@
 from typing import Optional
 
+from src.config.firebase import get_db
 from src.models.list_cover_model import (
     add_cover_to_firestore,
     cover_exists,
     list_user_covers_paginated,
     prepare_cover_data,
 )
-from src.models.song_infer_job_model import list_all_succeeded_song_infer_jobs
+from src.models.song_infer_job_model import (
+    get_song_infer_job_by_id,
+    list_all_succeeded_song_infer_jobs,
+)
 from src.models.user_rvc_model_model import get_accessible_rvc_model_by_id
+from src.utils.constant import LIST_COVER_COLLECTION
 from src.utils.cursor_pagination import normalize_limit
 from src.utils.data_transform import convert_firestore_doc
 
@@ -63,6 +68,37 @@ def backfill_covers_from_succeeded_jobs() -> dict:
         except Exception:
             failed += 1
     return {"created": created, "skipped": skipped, "failed": failed, "total": len(jobs)}
+
+
+def migrate_covers_add_song_info() -> dict:
+    """Update existing cover documents that are missing song_info by fetching from their job doc."""
+    db = get_db()
+    covers = [d.to_dict() for d in db.collection(LIST_COVER_COLLECTION).stream()]
+    updated = 0
+    skipped = 0
+    failed = 0
+    for cover in covers:
+        source_song = cover.get("source_song") or {}
+        if source_song.get("song_info"):
+            skipped += 1
+            continue
+        job_id = cover.get("song_infer_job_id", "")
+        if not job_id:
+            skipped += 1
+            continue
+        job_doc = get_song_infer_job_by_id(job_id)
+        if not job_doc or not job_doc.get("song_info"):
+            skipped += 1
+            continue
+        try:
+            db.collection(LIST_COVER_COLLECTION).document(cover["cover_id"]).update({
+                "source_song.song_info": job_doc["song_info"],
+                "source_song.source_song_id": job_doc.get("source_song_id", ""),
+            })
+            updated += 1
+        except Exception:
+            failed += 1
+    return {"updated": updated, "skipped": skipped, "failed": failed, "total": len(covers)}
 
 
 def list_covers(user_id: str, limit: Optional[int], start_after: Optional[str]) -> dict:
