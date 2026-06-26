@@ -707,3 +707,89 @@ Scheduler (3s poll + Redis trigger)              │
                → De-reverb → RVC Engine → Mixing (Pedalboard+pydub)│
                → Upload all outputs → Firestore (succeeded) ───────┘
 ```
+
+```mermaid
+graph TD
+    %% Định nghĩa các Swimlanes
+    subgraph Người_dùng ["Người dùng"]
+        start1(( ))
+        login["Đăng nhập"]
+        upload["Chọn chức năng<br>thu âm / tải lên<br>dữ liệu giọng nói"]
+        request_train["Người dùng yêu cầu<br>huấn luyện<br>mẫu giọng"]
+        view_model["Xem mô hình giọng<br>đã tạo"]
+        end1(( ))
+        end2(( ))
+    end
+
+    subgraph Ứng_dụng_Flutter ["Ứng dụng Flutter"]
+        send_audio["Gửi file<br>âm thanh"]
+    end
+
+    subgraph FastAPI_Backend ["FastAPI Backend"]
+        check_data["Kiểm tra định dạng,<br>kích thước, thời lượng"]
+        is_valid{"Dữ liệu<br>hợp lệ?"}
+        err_msg["Trả thông báo lỗi /<br>yêu cầu thu âm lại"]
+        save_metadata["Lưu file vào Storage,<br>lưu metadata<br>vào Firestore"]
+        create_job["Tạo training job<br>(trạng thái: pending)"]
+        push_queue["Đẩy job vào<br>Task Queue"]
+    end
+
+    subgraph Task_Queue ["Task Queue / Redis-Celery"]
+        receive_queue["Nhận job<br>(trạng thái: pending<br>-> processing)"]
+    end
+
+    subgraph AI_Engine ["AI Engine"]
+        receive_job["Nhận job (training)<br>(processing)"]
+        preprocess["Tiền xử lý dữ liệu<br>(chuẩn hóa sample rate,<br>cắt im lặng,<br>chuẩn hóa âm lượng)"]
+        extract_feat["Trích xuất đặc trưng<br>nội dung<br>(HuBERT / ContentVec)"]
+        extract_f0["Trích xuất F0<br>(RMVPE / FCPE)"]
+        train_rvc["Huấn luyện<br>mô hình RVC"]
+        build_faiss["Xây dựng file chỉ mục<br>FAISS"]
+        save_artifact["Lưu artifact mô hình<br>(.pth) và chỉ mục<br>(.index) vào Storage,<br>cập nhật trạng thái<br>vào Firestore"]
+        
+        is_success{"Huấn luyện<br>thành công?"}
+        update_fail["Cập nhật trạng thái<br>failed, ghi log lỗi,<br>gửi thông báo thất bại"]
+        update_success["Cập nhật trạng thái<br>completed, gửi<br>thông báo hoàn tất"]
+    end
+
+    subgraph Firestore_Storage ["Firestore / Storage"]
+        db_save_audio["Lưu file âm thanh<br>(Storage) và<br>metadata<br>(Firestore)"]
+        db_save_model["Lưu .pth, .index<br>(Storage) và<br>cập nhật trạng thái<br>(Firestore)"]
+    end
+
+    %% Luồng 1: Tải lên dữ liệu âm thanh
+    start1 --> login
+    login --> upload
+    upload --> send_audio
+    send_audio --> check_data
+    check_data --> is_valid
+    
+    is_valid -- "Không" --> err_msg
+    err_msg --> end1
+    
+    is_valid -- "Có" --> save_metadata
+    save_metadata --> db_save_audio
+
+    %% Luồng 2: Huấn luyện mô hình giọng
+    request_train --> create_job
+    create_job --> push_queue
+    push_queue --> receive_queue
+    receive_queue --> receive_job
+    
+    receive_job --> preprocess
+    preprocess --> extract_feat
+    extract_feat --> extract_f0
+    extract_f0 --> train_rvc
+    train_rvc --> build_faiss
+    build_faiss --> save_artifact
+    
+    save_artifact --> db_save_model
+    save_artifact --> is_success
+    
+    is_success -- "Không" --> update_fail
+    is_success -- "Có" --> update_success
+    
+    update_fail --> view_model
+    update_success --> view_model
+    view_model --> end2
+```

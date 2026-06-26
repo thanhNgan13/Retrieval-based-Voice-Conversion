@@ -18,6 +18,9 @@ else:
     os.environ["CUDA_VISIBLE_DEVICES"] = str(i_gpu)
     version = sys.argv[6]
     is_half = sys.argv[7].lower() == "true"
+from infer.lib.fairseq_torch_load_compat import apply_fairseq_torch_load_compat
+
+apply_fairseq_torch_load_compat()
 import fairseq
 import numpy as np
 import soundfile as sf

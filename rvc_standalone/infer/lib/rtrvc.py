@@ -4,7 +4,10 @@ import sys
 import traceback
 from infer.lib import jit
 from infer.lib.jit.get_synthesizer import get_synthesizer
+from infer.lib.fairseq_torch_load_compat import apply_fairseq_torch_load_compat
 from time import time as ttime
+
+apply_fairseq_torch_load_compat()
 import fairseq
 import faiss
 import numpy as np
