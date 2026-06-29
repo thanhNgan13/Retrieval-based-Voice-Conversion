@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import UploadFile
 
 from src.config.firebase import get_bucket, get_db
+from src.models.my_song_model import get_my_song_by_id
 from src.models.song_infer_job_model import (
     add_song_infer_job_to_firestore,
     get_song_infer_job_by_id,
@@ -24,6 +25,7 @@ from src.services.song_infer_errors import (
 from src.services.list_cover_service import list_covers
 from src.services.recent_model_service import RvcModelNotFoundError, add_recent_model
 from src.utils.constant import SONG_INFER_INPUT_FOLDER
+from src.utils.storage_helpers import generate_signed_download_url
 from src.utils.cursor_pagination import normalize_limit
 from src.utils.data_transform import convert_firestore_doc
 from src.utils.id_generator import generate_song_infer_job_id
@@ -182,6 +184,14 @@ def _get_song_by_id(song_id: str) -> Optional[dict]:
     return snaps[0].to_dict()
 
 
+def _get_user_song(user_id: str, song_id: str) -> Optional[dict]:
+    """Fetch from users/{userId}/my_songs/{songId}. Returns None if not found or not uploaded."""
+    doc = get_my_song_by_id(user_id, song_id)
+    if not doc or doc.get("user_id") != user_id:
+        return None
+    return doc
+
+
 def _build_params_from_schema(body) -> dict:
     """Convert CreateSongInferFromSongIdsRequest fields into the internal params dict."""
     return {
@@ -229,7 +239,11 @@ def _build_params_from_schema(body) -> dict:
 
 
 def create_song_infer_job_from_song_id(body, user_id: str) -> dict:
-    """Create one infer job from a Firestore song ID. Input audio is fetched from audioUrl."""
+    """Create one infer job from a Firestore song ID.
+
+    useUserSong=False (default): lấy song từ collectionGroup('songs') — playlist.
+    useUserSong=True: lấy song từ users/{userId}/my_songs/{songId}.
+    """
     _validate_params(_build_params_from_schema(body))
 
     rvc_model_id = body.rvcModelId
@@ -241,13 +255,51 @@ def create_song_infer_job_from_song_id(body, user_id: str) -> dict:
     if not model_doc:
         raise InvalidSongInferRequestError("RVC model '%s' not found" % rvc_model_id)
 
-    song_doc = _get_song_by_id(body.songId)
-    if not song_doc:
-        raise InvalidSongInferRequestError("Song '%s' not found" % body.songId)
+    use_user_song = getattr(body, "useUserSong", False)
 
-    audio_url = song_doc.get("audio_url") or ""
-    if not audio_url:
-        raise InvalidSongInferRequestError("Song '%s' has no audio_url" % body.songId)
+    if use_user_song:
+        song_doc = _get_user_song(user_id, body.songId)
+        if not song_doc:
+            raise InvalidSongInferRequestError(
+                "Song '%s' not found in your personal library" % body.songId
+            )
+        if song_doc.get("status") != "uploaded":
+            raise InvalidSongInferRequestError(
+                "Song '%s' has not been uploaded yet" % body.songId
+            )
+        object_path = song_doc.get("object_path", "")
+        if not object_path:
+            raise InvalidSongInferRequestError(
+                "Song '%s' has no audio file" % body.songId
+            )
+        audio_url = generate_signed_download_url(object_path)
+        song_info = {
+            "id": song_doc.get("id") or song_doc.get("song_id", ""),
+            "title": song_doc.get("title", ""),
+            "artists": song_doc.get("artists", []),
+            "duration": song_doc.get("duration", ""),
+            "cover_image": song_doc.get("cover_image", ""),
+            "audio_url": audio_url,
+            "playlist_id": song_doc.get("playlist_id", ""),
+            "uploader": song_doc.get("uploader", ""),
+        }
+    else:
+        song_doc = _get_song_by_id(body.songId)
+        if not song_doc:
+            raise InvalidSongInferRequestError("Song '%s' not found" % body.songId)
+        audio_url = song_doc.get("audio_url") or ""
+        if not audio_url:
+            raise InvalidSongInferRequestError("Song '%s' has no audio_url" % body.songId)
+        song_info = {
+            "id": song_doc.get("id", ""),
+            "title": song_doc.get("title", ""),
+            "artists": song_doc.get("artists", []),
+            "duration": song_doc.get("duration", ""),
+            "cover_image": song_doc.get("cover_image", ""),
+            "audio_url": song_doc.get("audio_url", ""),
+            "playlist_id": song_doc.get("playlist_id", ""),
+            "uploader": song_doc.get("uploader", ""),
+        }
 
     title = song_doc.get("title") or body.songId
     safe_title = re.sub(r"[^a-zA-Z0-9._-]+", "_", title).strip("._-") or "song"
@@ -263,16 +315,7 @@ def create_song_infer_job_from_song_id(body, user_id: str) -> dict:
         params=_build_params_from_schema(body),
         input_url=audio_url,
         source_song_id=body.songId,
-        song_info={
-            "id": song_doc.get("id", ""),
-            "title": song_doc.get("title", ""),
-            "artists": song_doc.get("artists", []),
-            "duration": song_doc.get("duration", ""),
-            "cover_image": song_doc.get("cover_image", ""),
-            "audio_url": song_doc.get("audio_url", ""),
-            "playlist_id": song_doc.get("playlist_id", ""),
-            "uploader": song_doc.get("uploader", ""),
-        },
+        song_info=song_info,
     )
     add_song_infer_job_to_firestore(doc)
 

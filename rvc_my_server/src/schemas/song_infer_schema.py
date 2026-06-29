@@ -6,6 +6,13 @@ from pydantic import BaseModel, Field
 class CreateSongInferFromSongIdRequest(BaseModel):
     songId: str = Field(..., description="ID bài hát cần infer")
     rvcModelId: str = Field(..., description="ID RVC model giọng đích")
+    useUserSong: bool = Field(
+        default=False,
+        description=(
+            "false (default): lấy bài hát từ collectionGroup `songs` (playlist). "
+            "true: lấy từ `users/{userId}/my_songs` của user hiện tại."
+        ),
+    )
 
     # Separation
     separationDenoise: bool = True
