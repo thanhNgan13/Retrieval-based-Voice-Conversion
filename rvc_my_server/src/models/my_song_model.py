@@ -22,13 +22,23 @@ def prepare_my_song_data(
     file_name: str,
     object_path: str,
     content_type: str,
+    artists: list[str],
+    duration: str,
+    uploader: str,
+    cover_image: str,
 ) -> dict:
     now = _now_iso()
     return {
+        "id": song_id,
         "song_id": song_id,
         "user_id": user_id,
+        "playlist_id": "",
         "title": title,
         "description": description,
+        "artists": artists,
+        "duration": duration,
+        "uploader": uploader,
+        "cover_image": cover_image,
         "file_name": file_name,
         "object_path": object_path,
         "content_type": content_type,

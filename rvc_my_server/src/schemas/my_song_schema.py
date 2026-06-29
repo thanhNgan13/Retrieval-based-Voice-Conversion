@@ -31,6 +31,17 @@ class CreateMySongUploadUrlRequest(BaseModel):
         description="Mô tả bài hát.",
         examples=["Thu âm tại nhà."],
     )
+    artists: Optional[list[str]] = Field(
+        default=None,
+        description="Danh sách nghệ sĩ. Nếu không truyền sẽ dùng tên user hiện tại.",
+        examples=[["Alan Walker"]],
+    )
+    duration: str = Field(
+        default="",
+        max_length=20,
+        description="Thời lượng bài hát, ví dụ 03:32. Client có thể truyền nếu đã đọc metadata.",
+        examples=["03:32"],
+    )
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -40,6 +51,8 @@ class CreateMySongUploadUrlRequest(BaseModel):
                 "contentType": "audio/mpeg",
                 "title": "Bài hát của tôi",
                 "description": "Thu âm tại nhà.",
+                "artists": ["Alan Walker"],
+                "duration": "03:32",
             }
         },
     )
@@ -59,6 +72,23 @@ class UpdateMySongRequest(BaseModel):
         description="Mô tả mới cho bài hát.",
         examples=["Mô tả mới."],
     )
+    artists: Optional[list[str]] = Field(
+        default=None,
+        description="Danh sách nghệ sĩ mới.",
+        examples=[["Alan Walker"]],
+    )
+    duration: Optional[str] = Field(
+        default=None,
+        max_length=20,
+        description="Thời lượng mới.",
+        examples=["03:32"],
+    )
+    cover_image: Optional[str] = Field(
+        default=None,
+        alias="coverImage",
+        max_length=2048,
+        description="URL ảnh cover mới. Nếu bỏ trống khi upload, server tự tạo URL ảnh theo title.",
+    )
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -66,6 +96,8 @@ class UpdateMySongRequest(BaseModel):
             "example": {
                 "title": "Tiêu đề mới",
                 "description": "Mô tả mới.",
+                "artists": ["Alan Walker"],
+                "duration": "03:32",
             }
         },
     )
