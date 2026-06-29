@@ -28,3 +28,7 @@ def generate_upload_session_id() -> str:
 
 def generate_audio_upload_id() -> str:
     return _generate_id("audio_upload")
+
+
+def generate_my_song_id() -> str:
+    return _generate_id("song")
