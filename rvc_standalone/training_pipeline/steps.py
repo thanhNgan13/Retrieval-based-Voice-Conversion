@@ -28,6 +28,7 @@ def _run(cmd: str, cwd: Path, on_line: Optional[Callable[[str], None]] = None) -
         cwd=str(cwd),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
         text=True,
         bufsize=1,
         universal_newlines=True,

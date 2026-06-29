@@ -103,6 +103,7 @@ def main():
         n_gpus = 1
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = str(randint(20000, 55555))
+    os.environ["USE_LIBUV"] = "0"  # PyTorch 2.6+ Windows: TCPStore libuv not built
     children = []
     logger = utils.get_logger(hps.model_dir)
     for i in range(n_gpus):

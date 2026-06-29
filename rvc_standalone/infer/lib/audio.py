@@ -32,24 +32,31 @@ def wav2(i, o, format):
 
 def load_audio(file, sr):
     try:
-        # https://github.com/openai/whisper/blob/main/whisper/audio.py#L26
-        # This launches a subprocess to decode audio while down-mixing and resampling as necessary.
-        # Requires the ffmpeg CLI and `ffmpeg-python` package to be installed.
-        file = clean_path(file)  # 防止小白拷路径头尾带了空格和"和回车
+        file = clean_path(file)
         if os.path.exists(file) == False:
             raise RuntimeError(
                 "You input a wrong audio path that does not exists, please fix it!"
             )
-        out, _ = (
-            ffmpeg.input(file, threads=0)
-            .output("-", format="f32le", acodec="pcm_f32le", ac=1, ar=sr)
-            .run(cmd=["ffmpeg", "-nostdin"], capture_stdout=True, capture_stderr=True)
-        )
+        # Dùng PyAV (av) thay vì subprocess ffmpeg CLI — PyAV dùng FFmpeg C libraries
+        # linked vào Python extension, không spawn process nên không bị lỗi DLL
+        # trên Python 3.11 Windows khi gọi từ multiprocessing child process.
+        container = av.open(file, "r")
+        resampler = av.AudioResampler(format="fltp", layout="mono", rate=sr)
+        chunks = []
+        for frame in container.decode(audio=0):
+            for out_frame in resampler.resample(frame):
+                chunks.append(out_frame.to_ndarray().flatten())
+        for out_frame in resampler.resample(None):
+            chunks.append(out_frame.to_ndarray().flatten())
+        container.close()
+        if not chunks:
+            return np.array([], dtype=np.float32)
+        return np.concatenate(chunks).astype(np.float32)
+    except RuntimeError:
+        raise
     except Exception as e:
         traceback.print_exc()
         raise RuntimeError(f"Failed to load audio: {e}")
-
-    return np.frombuffer(out, np.float32).flatten()
 
 
 
