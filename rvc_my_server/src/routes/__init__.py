@@ -32,6 +32,7 @@ def register_routes(app: FastAPI) -> None:
         from src.routes.rvc_model_routes import router as rvc_model_router
         from src.routes.song_infer_routes import router as song_infer_router
         from src.routes.train_routes import router as train_router
+        from src.routes.user_model_routes import router as user_model_router
         from src.routes.user_routes import router as user_router
 
         app.include_router(
@@ -67,6 +68,11 @@ def register_routes(app: FastAPI) -> None:
             my_song_router,
             prefix=f"{API_BASE_PATH}/my-song-services",
             tags=["My Songs"],
+        )
+        app.include_router(
+            user_model_router,
+            prefix=f"{API_BASE_PATH}/user-model-services",
+            tags=["User Model"],
         )
         app.include_router(
             admin_router, prefix=f"{API_BASE_PATH}/admin-services", tags=["Admin"]

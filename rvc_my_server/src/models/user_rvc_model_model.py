@@ -89,3 +89,25 @@ def list_user_rvc_models_paginated(
     docs = [d.to_dict() for d in query.limit(limit + 1).stream()]
     has_next = len(docs) > limit
     return docs[:limit], has_next
+
+
+def delete_user_rvc_model_from_firestore(user_id: str, rvc_model_id: str) -> Optional[dict]:
+    ref = _user_models_ref(user_id).document(rvc_model_id)
+    snap = ref.get()
+    if not snap.exists:
+        return None
+    doc = snap.to_dict()
+    ref.delete()
+    return doc
+
+
+def update_user_rvc_model_in_firestore(
+    user_id: str, rvc_model_id: str, updates: dict
+) -> Optional[dict]:
+    ref = _user_models_ref(user_id).document(rvc_model_id)
+    snap = ref.get()
+    if not snap.exists:
+        return None
+    updates["updated_at"] = _now_iso()
+    ref.update(updates)
+    return {**snap.to_dict(), **updates}
